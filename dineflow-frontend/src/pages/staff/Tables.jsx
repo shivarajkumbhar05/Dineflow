@@ -1,0 +1,101 @@
+import { useState } from 'react';
+import { Copy, Plus, Printer, QrCode, ReceiptText, Trash2, Users } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useAsync, useLive } from '../../hooks';
+import { api } from '../../lib/api';
+import { Button, Card, Empty, Input, Modal, PageLoader } from '../../components/ui';
+import { cx } from '../../lib/format';
+
+const STATUS = {
+  available: { label: 'Free', ring: 'ring-pista/50', dot: 'bg-pista' },
+  occupied: { label: 'Seated', ring: 'ring-saffron/60', dot: 'bg-saffron' },
+  reserved: { label: 'Reserved', ring: 'ring-sky/60', dot: 'bg-sky' },
+  billing: { label: 'Billing', ring: 'ring-chili/60', dot: 'bg-chili' },
+};
+
+function printQr(t, restaurantName) {
+  const svg = document.getElementById(`qr-${t._id}`)?.outerHTML || '';
+  const w = window.open('', '_blank', 'width=520,height=700');
+  if (!w) return toast.error('Allow pop-ups to print the QR code.');
+  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan to order from your table</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2></body>`);
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+}
+
+export default function Tables() {
+  const { socket, can, restaurant } = useAuth();
+  const nav = useNavigate();
+  const { data, setData, loading, reload } = useAsync(() => api('/api/tables'));
+  const [adding, setAdding] = useState(false); const [form, setForm] = useState({ number: '', seats: 4 }); const [busy, setBusy] = useState(false);
+  const [qr, setQr] = useState(null);
+  const manage = can('owner', 'manager');
+
+  useLive(socket, { 'table:updated': ({ tableId, status }) => setData((cur) => cur && cur.map((t) => (t._id === tableId ? { ...t, status } : t))) });
+
+  const add = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await api('/api/tables', { method: 'POST', body: { number: form.number, seats: Number(form.seats) } }); setAdding(false); setForm({ number: '', seats: 4 }); reload(); toast.success('Table added'); }
+    catch (x) { toast.error(x.message); } finally { setBusy(false); }
+  };
+  const setStatus = async (t, status) => { try { await api(`/api/tables/${t._id}/status`, { method: 'PATCH', body: { status } }); } catch (e) { toast.error(e.message); } };
+  const bill = async (t) => { try { await api(`/api/billing/table/${t._id}`, { method: 'POST', body: {} }); toast.success(`Bill created for table ${t.number}`); nav('/app/billing'); } catch (e) { toast.error(e.message); } };
+  const remove = async (t) => { if (!window.confirm(`Delete table ${t.number}? Its printed QR code will stop working.`)) return; try { await api(`/api/tables/${t._id}`, { method: 'DELETE' }); reload(); } catch (e) { toast.error(e.message); } };
+
+  if (loading && !data) return <PageLoader />;
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Tables</h1><p className="mt-1 text-warm-dim">Each table has its own QR code. Colours update live as guests sit, order and pay.</p></div>
+        {manage && <Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Add table</Button>}
+      </div>
+
+      {(data || []).length === 0 ? <Empty icon={QrCode} title="No tables yet" action={manage && <Button onClick={() => setAdding(true)}>Add your first table</Button>}>Create a table to get a QR code you can print and stick on it.</Empty> : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {data.map((t) => {
+            const s = STATUS[t.status] || STATUS.available;
+            return (
+              <Card key={t._id} className={cx('ring-2 transition', s.ring)}>
+                <div className="flex items-start justify-between">
+                  <div><p className="text-sm font-semibold text-warm-dim">Table</p><p className="font-display text-5xl font-extrabold leading-none">{t.number}</p></div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-1 text-sm font-bold"><span className={cx('h-2.5 w-2.5 rounded-full', s.dot)} />{s.label}</span>
+                </div>
+                <p className="mt-3 flex items-center gap-1.5 text-sm text-warm-dim"><Users className="h-4 w-4" />{t.seats} seats</p>
+                <select aria-label={`Status of table ${t.number}`} value={t.status} onChange={(e) => setStatus(t, e.target.value)} className="mt-4 w-full rounded-xl bg-ink/70 px-3 py-2 text-sm font-semibold ring-1 ring-plum-line focus:outline-none focus:ring-2 focus:ring-saffron">
+                  {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="soft" size="sm" className="flex-1" onClick={() => setQr(t)}><QrCode className="h-4 w-4" />QR code</Button>
+                  <Button variant="soft" size="sm" className="flex-1" onClick={() => bill(t)}><ReceiptText className="h-4 w-4" />Bill</Button>
+                  {manage && <Button variant="danger" size="sm" aria-label={`Delete table ${t.number}`} onClick={() => remove(t)}><Trash2 className="h-4 w-4" /></Button>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal open={adding} onClose={() => setAdding(false)} title="Add a table">
+        <form onSubmit={add} className="space-y-4">
+          <Input label="Table number or name" required autoFocus value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="e.g. 6 or Patio 2" />
+          <Input label="Seats" type="number" min="1" required value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} />
+          <Button type="submit" className="w-full" loading={busy}>Add table</Button>
+        </form>
+      </Modal>
+
+      <Modal open={!!qr} onClose={() => setQr(null)} title={qr ? `Table ${qr.number} QR code` : ''}>
+        {qr && (
+          <div className="text-center">
+            <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG id={`qr-${qr._id}`} value={qr.qrUrl} size={220} level="M" /></div>
+            <p className="mt-4 break-all rounded-lg bg-ink/70 px-3 py-2 text-xs text-warm-dim">{qr.qrUrl}</p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="soft" className="flex-1" onClick={() => { navigator.clipboard?.writeText(qr.qrUrl); toast.success('Link copied'); }}><Copy className="h-4 w-4" />Copy link</Button>
+              <Button className="flex-1" onClick={() => printQr(qr, restaurant?.name)}><Printer className="h-4 w-4" />Print</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}

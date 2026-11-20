@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html { -webkit-tap-highlight-color: transparent; }
+body {
+  @apply bg-ink font-sans text-warm antialiased;
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgba(255,90,78,.16), transparent 60%),
+    radial-gradient(800px 500px at -10% 10%, rgba(255,176,32,.10), transparent 55%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+h1, h2, h3, .font-display { font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid #FFB020; outline-offset: 2px; border-radius: 8px; }
+::selection { background: #FFB020; color: #170A28; }
+* { scrollbar-width: thin; scrollbar-color: #43266B transparent; }
+
+/* The one signature device: a perforated order ticket (used for orders, bills, hero). */
+.ticket {
+  --r: 10px;
+  background: #2F1650;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 var(--notch, 64px), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch, 64px), #0000 97%, #000) right / 51% 100% no-repeat;
+          mask:
+    radial-gradient(circle var(--r) at 0 var(--notch, 64px), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch, 64px), #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.tear { border-top: 2px dashed #43266B; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
