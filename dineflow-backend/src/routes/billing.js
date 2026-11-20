@@ -14,20 +14,20 @@ router.get('/', authorize('owner', 'manager', 'cashier'), asyncHandler(async (re
 }));
 
 // Generate a bill from all un-billed, non-cancelled orders of a table
-router.post('/table/:tableId', authorize('owner', 'manager', 'cashier'), asyncHandler(async (req, res) => {
+router.post('/table/:tableId', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const table = await Table.findOne({ _id: req.params.tableId, restaurant: req.tenantId });
   if (!table) throw new ApiError(404, 'Table not found');
-  const existing = await Bill.findOne({ restaurant: req.tenantId, table: table._id, status: 'unpaid' });
-  if (existing) return res.json(existing);
   const bill = await createTableBill({ restaurantId: req.tenantId, table, discount: req.body.discount });
-  res.status(201).json(bill);
+  res.json(bill);
 }));
 
 // Counter payment (cash / card / upi)
 router.post('/:id/pay-offline', authorize('owner', 'manager', 'cashier'), asyncHandler(async (req, res) => {
   if (!['cash', 'card', 'upi'].includes(req.body.method)) throw new ApiError(400, 'Invalid payment method');
+  if (req.user.role === 'cashier' && req.body.method !== 'cash') throw new ApiError(403, 'Cashiers can only confirm cash payments');
   const bill = await Bill.findOne({ _id: req.params.id, restaurant: req.tenantId });
   if (!bill) throw new ApiError(404, 'Bill not found');
-  res.json(await markBillPaid(bill, { method: req.body.method }));
+  const result = await markBillPaid(bill, { method: req.body.method });
+  res.json({ ...result.bill.toObject(), tableStatus: result.tableStatus });
 }));
 module.exports = router;

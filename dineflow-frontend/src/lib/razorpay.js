@@ -19,8 +19,8 @@ export async function payWithRazorpay({ keyId, razorpayOrderId, amount, currency
     key: keyId, order_id: razorpayOrderId, amount, currency, name, description,
     theme: { color: '#FFB020' },
     handler: async (r) => {
-      await api('/api/payments/razorpay/verify', { method: 'POST', auth: false, body: { razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature } });
-      onPaid?.();
+      const result = await api('/api/payments/razorpay/verify', { method: 'POST', auth: false, body: { razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature } });
+      onPaid?.(result);
     },
     modal: { ondismiss: () => onDismiss?.() },
   });

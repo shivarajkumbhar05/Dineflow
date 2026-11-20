@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks';
 import { api } from '../lib/api';
 import { Logo } from './ui';
-import { cx, ding, money } from '../lib/format';
+import { cx, ding } from '../lib/format';
 
 const NAV = [
   { to: '/app', end: true, label: 'Overview', icon: LayoutDashboard, roles: ['owner', 'manager'] },
@@ -54,7 +54,9 @@ export default function StaffLayout() {
     'order:status': (p) => { if (user.role === 'waiter' && p.status === 'preparing') { ding(760); toast(`Table ${p.tableNumber}: order is cooking`); } },
     'kitchen:ready': (p) => { if (floorSide) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
     'waiter:call': (c) => { if (floorSide) { ding(520); toast(`Table ${c.tableNumber} needs ${c.reason === 'bill' ? 'the bill' : c.reason === 'water' ? 'water' : 'a waiter'}`, { icon: '🔔' }); } },
-    'payment:confirmed': (p) => toast.success(`Payment received: ${money(p.total, restaurant?.currency)}`),
+    'payment:confirmed': (p) => toast.success(p.tableStatus === 'available'
+      ? `Payment received for table ${p.tableNumber}. Table is now free.`
+      : `Payment received for table ${p.tableNumber}.`),
   });
 
   return (

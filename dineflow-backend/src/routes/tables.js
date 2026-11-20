@@ -23,7 +23,7 @@ router.post('/', authorize('owner', 'manager'), asyncHandler(async (req, res) =>
   res.status(201).json({ ...table.toObject(), qrUrl: qrLink(restaurant.slug, table.qrToken) });
 }));
 
-router.patch('/:id/status', authorize('owner', 'manager', 'cashier'), asyncHandler(async (req, res) => {
+router.patch('/:id/status', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const { status } = req.body;
   if (!['available', 'occupied', 'reserved', 'billing'].includes(status)) throw new ApiError(400, 'Invalid status');
   const table = await Table.findOneAndUpdate({ _id: req.params.id, restaurant: req.tenantId }, { status }, { new: true });

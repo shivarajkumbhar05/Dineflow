@@ -9,7 +9,7 @@ const { createOrder, verifyPaymentSignature, verifyWebhookSignature } = require(
 const { markBillPaid } = require('../services/billing');
 
 // Staff creates a Razorpay order for a bill
-router.post('/razorpay/order', authenticate, authorize('owner', 'manager', 'cashier', 'waiter'), asyncHandler(async (req, res) => {
+router.post('/razorpay/order', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const bill = await Bill.findOne({ _id: req.body.billId, restaurant: req.tenantId });
   if (!bill) throw new ApiError(404, 'Bill not found');
   if (bill.status === 'paid') throw new ApiError(400, 'Bill already paid');
@@ -28,8 +28,8 @@ router.post('/razorpay/verify', asyncHandler(async (req, res) => {
   if (!verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) throw new ApiError(400, 'Invalid payment signature');
   const bill = await Bill.findOne({ razorpayOrderId: razorpay_order_id });
   if (!bill) throw new ApiError(404, 'Bill not found');
-  await markBillPaid(bill, { method: 'razorpay', paymentId: razorpay_payment_id });
-  res.json({ ok: true, status: 'paid' });
+  const result = await markBillPaid(bill, { method: 'razorpay', paymentId: razorpay_payment_id });
+  res.json({ ok: true, status: 'paid', tableStatus: result.tableStatus, tableNumber: result.bill.tableNumber });
 }));
 
 // Razorpay webhook. Mounted in app.js with express.raw() so the signature is checked on the raw body.

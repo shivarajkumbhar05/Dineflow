@@ -58,6 +58,7 @@ router.post('/:slug/orders', publicOrderLimiter, asyncHandler(async (req, res) =
     await table.save();
     emitToRestaurant(req.tenantId, 'table:updated', { tableId: table._id, status: 'occupied' });
   }
+  await createTableBill({ restaurantId: req.tenantId, table });
   emitToRestaurant(req.tenantId, 'order:new', order); // kitchen + waiter dashboards
   res.status(201).json({ orderId: order._id, trackingCode: order.trackingCode, status: order.status, subtotal });
 }));
@@ -71,6 +72,7 @@ router.get('/:slug/orders/:trackingCode', asyncHandler(async (req, res) => {
 router.post('/:slug/waiter-call', publicOrderLimiter, asyncHandler(async (req, res) => {
   const table = await findTable(req, req.body.tableToken);
   const reason = ['assistance', 'water', 'bill', 'other'].includes(req.body.reason) ? req.body.reason : 'assistance';
+  if (reason === 'bill') await createTableBill({ restaurantId: req.tenantId, table });
   const call = await WaiterCall.create({ restaurant: req.tenantId, table: table._id, tableNumber: table.number, reason });
   emitToRestaurant(req.tenantId, 'waiter:call', call);
   res.status(201).json({ ok: true, callId: call._id });

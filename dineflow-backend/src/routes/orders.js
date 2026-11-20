@@ -4,6 +4,7 @@ const ApiError = require('../utils/ApiError');
 const { Order, Table } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { emitToRestaurant, emitToOrder } = require('../sockets');
+const { removeCancelledOrderFromBill } = require('../services/billing');
 
 router.use(authenticate);
 
@@ -21,6 +22,7 @@ router.patch('/:id/status', authorize('owner', 'manager'), asyncHandler(async (r
   const order = await Order.findOne({ _id: req.params.id, restaurant: req.tenantId });
   if (!order) throw new ApiError(404, 'Order not found');
   if (!FLOW[order.status].includes(status)) throw new ApiError(400, `Cannot change status from ${order.status} to ${status}`);
+  if (status === 'cancelled') await removeCancelledOrderFromBill(order);
   order.status = status;
   await order.save();
   const payload = { orderId: order._id, tableId: order.table, tableNumber: order.tableNumber, status };

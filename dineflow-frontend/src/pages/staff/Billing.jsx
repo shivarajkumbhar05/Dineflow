@@ -8,15 +8,32 @@ import { payWithRazorpay } from '../../lib/razorpay';
 import { Button, Empty, PageLoader, Pill } from '../../components/ui';
 import { cx, money, timeAgo } from '../../lib/format';
 
-function BillTicket({ b, cur, onChange, restaurantName }) {
+function BillTicket({ b, cur, onChange, restaurantName, role }) {
   const [busy, setBusy] = useState('');
   const paid = b.status === 'paid';
-  const offline = async (method) => { setBusy(method); try { await api(`/api/billing/${b._id}/pay-offline`, { method: 'POST', body: { method } }); toast.success(`Table ${b.tableNumber} paid by ${method}`); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(''); } };
+  const offline = async (method) => {
+    setBusy(method);
+    try {
+      const result = await api(`/api/billing/${b._id}/pay-offline`, { method: 'POST', body: { method } });
+      toast.success(result.tableStatus === 'available'
+        ? `${method === 'cash' ? 'Cash received' : 'Payment recorded'} for table ${b.tableNumber}. Table is now free.`
+        : `${method === 'cash' ? 'Cash received' : 'Payment recorded'} for table ${b.tableNumber}.`);
+      onChange();
+    } catch (e) { toast.error(e.message); } finally { setBusy(''); }
+  };
   const online = async () => {
     setBusy('razorpay');
     try {
       const o = await api('/api/payments/razorpay/order', { method: 'POST', body: { billId: b._id } });
-      await payWithRazorpay(o, { name: restaurantName, description: `Table ${b.tableNumber}`, onPaid: () => { toast.success('Payment verified'); onChange(); }, onDismiss: () => setBusy('') });
+      await payWithRazorpay(o, {
+        name: restaurantName,
+        description: `Table ${b.tableNumber}`,
+        onPaid: (result) => {
+          toast.success(result.tableStatus === 'available' ? `Table ${b.tableNumber} is now free.` : 'Payment verified.');
+          onChange();
+        },
+        onDismiss: () => setBusy(''),
+      });
     } catch (e) { toast.error(e.message); setBusy(''); }
   };
   return (
@@ -36,7 +53,12 @@ function BillTicket({ b, cur, onChange, restaurantName }) {
         <div className="flex justify-between text-warm-dim"><dt>Tax ({b.taxPercent}%)</dt><dd>{money(b.tax, cur)}</dd></div>
         <div className="flex justify-between pt-2 font-display text-2xl font-extrabold"><dt>Total</dt><dd className="text-saffron">{money(b.total, cur)}</dd></div>
       </dl>
-      {!paid && (
+      {!paid && role === 'cashier' && (
+        <div className="px-5 pb-5">
+          <Button className="w-full" variant="success" size="sm" loading={busy === 'cash'} onClick={() => offline('cash')}><Banknote className="h-4 w-4" />Confirm cash received</Button>
+        </div>
+      )}
+      {!paid && role !== 'cashier' && (
         <div className="grid grid-cols-2 gap-2 px-5 pb-5">
           <Button variant="soft" size="sm" loading={busy === 'cash'} onClick={() => offline('cash')}><Banknote className="h-4 w-4" />Cash</Button>
           <Button variant="soft" size="sm" loading={busy === 'card'} onClick={() => offline('card')}><CreditCard className="h-4 w-4" />Card</Button>
@@ -49,7 +71,7 @@ function BillTicket({ b, cur, onChange, restaurantName }) {
 }
 
 export default function Billing() {
-  const { socket, restaurant } = useAuth();
+  const { socket, restaurant, user } = useAuth();
   const [tab, setTab] = useState('unpaid');
   const { data, loading, reload } = useAsync(() => api('/api/billing'));
   useLive(socket, { 'billing:updated': () => reload() });
@@ -59,14 +81,14 @@ export default function Billing() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Billing</h1><p className="mt-1 text-warm-dim">Create a bill from the Tables page, then take payment here.</p></div>
+        <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Billing</h1><p className="mt-1 text-warm-dim">Bills are generated automatically when guests order. Cashiers confirm cash received here.</p></div>
         <p className="num text-right"><span className="block text-sm text-warm-dim">Waiting to be collected</span><span className="font-display text-3xl font-extrabold text-saffron">{money(due, restaurant?.currency)}</span></p>
       </div>
       <div className="flex gap-2">
         {['unpaid', 'paid'].map((t) => <button key={t} onClick={() => setTab(t)} className={cx('rounded-full px-5 py-2 text-sm font-bold capitalize ring-1', tab === t ? 'bg-saffron text-ink ring-saffron' : 'bg-plum text-warm-dim ring-plum-line')}>{t}</button>)}
       </div>
-      {list.length === 0 ? <Empty icon={Receipt} title={tab === 'unpaid' ? 'No open bills' : 'No paid bills yet'}>{tab === 'unpaid' ? 'When a table asks to pay, create its bill from the Tables page.' : 'Paid bills will be listed here.'}</Empty> : (
-        <ul className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">{list.map((b) => <BillTicket key={b._id} b={b} cur={restaurant?.currency} onChange={reload} restaurantName={restaurant?.name} />)}</ul>
+      {list.length === 0 ? <Empty icon={Receipt} title={tab === 'unpaid' ? 'No open bills' : 'No paid bills yet'}>{tab === 'unpaid' ? 'Bills appear here automatically after guests place orders.' : 'Paid bills will be listed here.'}</Empty> : (
+        <ul className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">{list.map((b) => <BillTicket key={b._id} b={b} cur={restaurant?.currency} onChange={reload} restaurantName={restaurant?.name} role={user.role} />)}</ul>
       )}
     </div>
   );

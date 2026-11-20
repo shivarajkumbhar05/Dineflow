@@ -62,12 +62,12 @@ export default function Tables() {
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-1 text-sm font-bold"><span className={cx('h-2.5 w-2.5 rounded-full', s.dot)} />{s.label}</span>
                 </div>
                 <p className="mt-3 flex items-center gap-1.5 text-sm text-warm-dim"><Users className="h-4 w-4" />{t.seats} seats</p>
-                <select aria-label={`Status of table ${t.number}`} value={t.status} onChange={(e) => setStatus(t, e.target.value)} className="mt-4 w-full rounded-xl bg-ink/70 px-3 py-2 text-sm font-semibold ring-1 ring-plum-line focus:outline-none focus:ring-2 focus:ring-saffron">
+                {manage && <select aria-label={`Status of table ${t.number}`} value={t.status} onChange={(e) => setStatus(t, e.target.value)} className="mt-4 w-full rounded-xl bg-ink/70 px-3 py-2 text-sm font-semibold ring-1 ring-plum-line focus:outline-none focus:ring-2 focus:ring-saffron">
                   {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                </select>
+                </select>}
                 <div className="mt-3 flex gap-2">
                   <Button variant="soft" size="sm" className="flex-1" onClick={() => setQr(t)}><QrCode className="h-4 w-4" />QR code</Button>
-                  <Button variant="soft" size="sm" className="flex-1" onClick={() => bill(t)}><ReceiptText className="h-4 w-4" />Bill</Button>
+                  {manage && <Button variant="soft" size="sm" className="flex-1" onClick={() => bill(t)}><ReceiptText className="h-4 w-4" />Bill</Button>}
                   {manage && <Button variant="danger" size="sm" aria-label={`Delete table ${t.number}`} onClick={() => remove(t)}><Trash2 className="h-4 w-4" /></Button>}
                 </div>
               </Card>
