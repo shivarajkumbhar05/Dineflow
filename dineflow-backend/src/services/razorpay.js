@@ -2,12 +2,32 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const env = require('../config/env');
 const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 let client = null;
 function getClient() {
   if (!env.razorpay.keyId || !env.razorpay.keySecret) throw new ApiError(503, 'Payments are not configured');
   if (!client) client = new Razorpay({ key_id: env.razorpay.keyId, key_secret: env.razorpay.keySecret });
   return client;
+}
+
+async function createOrder(bill, restaurantId) {
+  try {
+    return await getClient().orders.create({
+      amount: Math.round(bill.total * 100),
+      currency: 'INR',
+      receipt: String(bill._id),
+      notes: { billId: String(bill._id), restaurantId: String(restaurantId) },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Razorpay order creation failed', {
+      billId: String(bill._id),
+      restaurantId: String(restaurantId),
+      error: error.message,
+    });
+    throw new ApiError(502, 'Online payment could not be started. Please try again or pay at the counter.');
+  }
 }
 
 const safeEqual = (a, b) => {
@@ -26,4 +46,4 @@ function verifyWebhookSignature(rawBody, signature) {
   return safeEqual(expected, signature || '');
 }
 
-module.exports = { getClient, verifyPaymentSignature, verifyWebhookSignature };
+module.exports = { getClient, createOrder, verifyPaymentSignature, verifyWebhookSignature };

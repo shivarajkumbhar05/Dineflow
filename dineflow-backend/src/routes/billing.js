@@ -1,10 +1,9 @@
 const router = require('express').Router();
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
-const { Order, Table, Bill, Restaurant } = require('../models');
+const { Table, Bill } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
-const { emitToRestaurant } = require('../sockets');
-const { markBillPaid } = require('../services/billing');
+const { createTableBill, markBillPaid } = require('../services/billing');
 
 router.use(authenticate);
 
@@ -20,30 +19,7 @@ router.post('/table/:tableId', authorize('owner', 'manager', 'cashier'), asyncHa
   if (!table) throw new ApiError(404, 'Table not found');
   const existing = await Bill.findOne({ restaurant: req.tenantId, table: table._id, status: 'unpaid' });
   if (existing) return res.json(existing);
-
-  const orders = await Order.find({ restaurant: req.tenantId, table: table._id, billed: false, status: { $ne: 'cancelled' } });
-  if (!orders.length) throw new ApiError(400, 'No orders to bill for this table');
-
-  const restaurant = await Restaurant.findById(req.tenantId);
-  const merged = new Map();
-  orders.forEach((o) => o.items.forEach((i) => {
-    const k = `${i.name}|${i.price}`;
-    merged.set(k, { name: i.name, price: i.price, qty: (merged.get(k)?.qty || 0) + i.qty });
-  }));
-  const subtotal = orders.reduce((s, o) => s + o.subtotal, 0);
-  const discount = Math.min(Math.max(Number(req.body.discount) || 0, 0), subtotal);
-  const tax = Math.round(((subtotal - discount) * restaurant.taxPercent) / 100 * 100) / 100;
-  const total = Math.round((subtotal - discount + tax) * 100) / 100;
-
-  const bill = await Bill.create({
-    restaurant: req.tenantId, table: table._id, tableNumber: table.number, orders: orders.map((o) => o._id),
-    items: [...merged.values()], subtotal, taxPercent: restaurant.taxPercent, tax, discount, total,
-  });
-  await Order.updateMany({ _id: { $in: bill.orders }, restaurant: req.tenantId }, { billed: true, bill: bill._id });
-  table.status = 'billing';
-  await table.save();
-  emitToRestaurant(req.tenantId, 'billing:updated', bill);
-  emitToRestaurant(req.tenantId, 'table:updated', { tableId: table._id, status: 'billing' });
+  const bill = await createTableBill({ restaurantId: req.tenantId, table, discount: req.body.discount });
   res.status(201).json(bill);
 }));
 

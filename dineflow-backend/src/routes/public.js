@@ -6,9 +6,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const publicTenant = require('../middleware/publicTenant');
 const { publicOrderLimiter } = require('../middleware/rateLimit');
-const { MenuCategory, MenuItem, Table, Order, WaiterCall, Bill } = require('../models');
+const { MenuCategory, MenuItem, Table, Order, WaiterCall } = require('../models');
 const { emitToRestaurant } = require('../sockets');
-const { getClient } = require('../services/razorpay');
+const { createOrder } = require('../services/razorpay');
+const { createTableBill } = require('../services/billing');
 const env = require('../config/env');
 
 router.use('/:slug', publicTenant);
@@ -78,10 +79,9 @@ router.post('/:slug/waiter-call', publicOrderLimiter, asyncHandler(async (req, r
 // Customer pays their table's open bill with Razorpay
 router.post('/:slug/bill/pay', publicOrderLimiter, asyncHandler(async (req, res) => {
   const table = await findTable(req, req.body.tableToken);
-  const bill = await Bill.findOne({ restaurant: req.tenantId, table: table._id, status: 'unpaid' });
-  if (!bill) throw new ApiError(404, 'No open bill for this table');
+  const bill = await createTableBill({ restaurantId: req.tenantId, table });
   if (!bill.razorpayOrderId) {
-    const rzp = await getClient().orders.create({ amount: Math.round(bill.total * 100), currency: 'INR', receipt: String(bill._id), notes: { billId: String(bill._id), restaurantId: String(req.tenantId) } });
+    const rzp = await createOrder(bill, req.tenantId);
     bill.razorpayOrderId = rzp.id;
     await bill.save();
   }

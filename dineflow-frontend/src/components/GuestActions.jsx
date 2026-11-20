@@ -24,7 +24,10 @@ export default function GuestActions({ slug, token, restaurantName }) {
     try {
       const o = await pub(slug).pay({ tableToken: token });
       await payWithRazorpay(o, { name: restaurantName, description: 'Table bill', onPaid: () => { toast.success('Payment received. Thank you!'); setBusy(''); }, onDismiss: () => setBusy('') });
-    } catch (e) { toast.error(e.status === 404 ? 'There is no bill yet. Ask your waiter to prepare it.' : e.message); setBusy(''); }
+    } catch (e) {
+      toast.error(e.message === 'No orders to bill for this table' ? 'There are no orders to pay for this table yet.' : e.message);
+      setBusy('');
+    }
   };
   if (!token) return null;
   return (

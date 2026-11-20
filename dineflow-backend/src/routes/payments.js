@@ -5,7 +5,7 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 const { Bill } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
-const { getClient, verifyPaymentSignature, verifyWebhookSignature } = require('../services/razorpay');
+const { createOrder, verifyPaymentSignature, verifyWebhookSignature } = require('../services/razorpay');
 const { markBillPaid } = require('../services/billing');
 
 // Staff creates a Razorpay order for a bill
@@ -14,7 +14,7 @@ router.post('/razorpay/order', authenticate, authorize('owner', 'manager', 'cash
   if (!bill) throw new ApiError(404, 'Bill not found');
   if (bill.status === 'paid') throw new ApiError(400, 'Bill already paid');
   if (!bill.razorpayOrderId) {
-    const rzp = await getClient().orders.create({ amount: Math.round(bill.total * 100), currency: 'INR', receipt: String(bill._id), notes: { billId: String(bill._id), restaurantId: String(req.tenantId) } });
+    const rzp = await createOrder(bill, req.tenantId);
     bill.razorpayOrderId = rzp.id;
     await bill.save();
   }
