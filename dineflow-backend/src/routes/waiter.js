@@ -6,7 +6,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { emitToRestaurant } = require('../sockets');
 
 router.use(authenticate);
-router.get('/calls', asyncHandler(async (req, res) =>
+router.get('/calls', authorize('owner', 'manager', 'waiter'), asyncHandler(async (req, res) =>
   res.json(await WaiterCall.find({ restaurant: req.tenantId, status: { $ne: 'resolved' } }).sort('-createdAt'))));
 router.patch('/calls/:id', authorize('owner', 'manager', 'waiter'), asyncHandler(async (req, res) => {
   if (!['acknowledged', 'resolved'].includes(req.body.status)) throw new ApiError(400, 'Invalid status');

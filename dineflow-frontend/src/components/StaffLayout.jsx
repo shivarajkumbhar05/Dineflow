@@ -11,8 +11,8 @@ const NAV = [
   { to: '/app', end: true, label: 'Overview', icon: LayoutDashboard, roles: ['owner', 'manager'] },
   { to: '/app/kitchen', label: 'Kitchen', icon: ChefHat, roles: ['owner', 'manager', 'kitchen'] },
   { to: '/app/floor', label: 'Floor', icon: ConciergeBell, roles: ['owner', 'manager', 'waiter'] },
-  { to: '/app/tables', label: 'Tables', icon: QrCode, roles: ['owner', 'manager', 'waiter', 'cashier'] },
-  { to: '/app/billing', label: 'Billing', icon: CreditCard, roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { to: '/app/tables', label: 'Tables', icon: QrCode, roles: ['owner', 'manager', 'cashier'] },
+  { to: '/app/billing', label: 'Billing', icon: CreditCard, roles: ['owner', 'manager', 'cashier'] },
   { to: '/app/menu', label: 'Menu', icon: Soup, roles: ['owner', 'manager'] },
   { to: '/app/team', label: 'Team', icon: Users, roles: ['owner', 'manager'] },
   { to: '/app/settings', label: 'Settings', icon: Cog, roles: ['owner', 'manager'] },
@@ -36,7 +36,7 @@ export default function StaffLayout() {
   const floorSide = ['owner', 'manager', 'waiter'].includes(user.role);
   useLive(socket, {
     'order:new': (o) => { if (kitchenSide) { ding(880); toast(`New order for table ${o.tableNumber}`, { icon: '🧾', description: `${o.items?.length || 0} items` }); } },
-    'kitchen:ready': (p) => { if (floorSide) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
+    'kitchen:ready': (p) => { if (['owner', 'manager'].includes(user.role)) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
     'waiter:call': (c) => { if (floorSide) { ding(520); toast(`Table ${c.tableNumber} needs ${c.reason === 'bill' ? 'the bill' : c.reason === 'water' ? 'water' : 'a waiter'}`, { icon: '🔔' }); } },
     'payment:confirmed': (p) => toast.success(`Payment received: ${money(p.total, restaurant?.currency)}`),
   });

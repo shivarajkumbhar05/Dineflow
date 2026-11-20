@@ -6,11 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useOrders, useTick } from '../../hooks';
 import { api } from '../../lib/api';
 import { Button, Empty, PageLoader } from '../../components/ui';
-import { cx, minutesSince, NEXT_LABEL, NEXT_STATUS, ORDER_STATUS } from '../../lib/format';
+import { cx, minutesSince, NEXT_LABEL, NEXT_STATUS, ORDER_STATUS, orderNumber } from '../../lib/format';
 
 const COLS = [
   { key: 'placed', title: 'New', bar: 'bg-saffron' },
-  { key: 'accepted', title: 'Accepted', bar: 'bg-sky' },
   { key: 'preparing', title: 'Cooking', bar: 'bg-chili' },
   { key: 'ready', title: 'Ready for pick-up', bar: 'bg-pista' },
 ];
@@ -23,7 +22,7 @@ function KitchenTicket({ o, onMove, busy }) {
     <motion.li layout initial={{ opacity: 0, y: -18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ type: 'spring', stiffness: 300, damping: 26 }}
       className="ticket shadow-lift" style={{ '--notch': '52px' }}>
       <div className="flex items-center justify-between px-4 pb-3 pt-4">
-        <p className="font-display text-2xl font-extrabold">Table {o.tableNumber}</p>
+        <div><p className="font-display text-2xl font-extrabold">Table {o.tableNumber}</p><p className="text-xs font-semibold text-warm-faint">Order #{orderNumber(o._id)}</p></div>
         <span className={cx('num inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold', late ? 'bg-chili text-ink' : 'bg-white/10 text-warm-dim')}><Clock className="h-3.5 w-3.5" />{mins} min</span>
       </div>
       <div className="tear mx-3" />
@@ -63,7 +62,7 @@ export default function Kitchen() {
   if (loading && !data) return <PageLoader />;
   if (error) return <Empty icon={ChefHat} title="Could not load orders">{error}</Empty>;
   const orders = (data || []).filter((o) => ORDER_STATUS[o.status] && !['served', 'cancelled'].includes(o.status)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-  const by = (k) => orders.filter((o) => o.status === k);
+  const by = (k) => orders.filter((o) => k === 'preparing' ? ['accepted', 'preparing'].includes(o.status) : o.status === k);
 
   return (
     <div>

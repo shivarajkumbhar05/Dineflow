@@ -13,7 +13,7 @@ const DISHES = [
   ['2× Veg Biryani', '2× Raita', '1× Gulab Jamun'],
   ['1× Tandoori Platter', '2× Fresh Lime Soda'],
 ];
-const FLOW = ['placed', 'accepted', 'preparing', 'ready'];
+const FLOW = ['placed', 'preparing', 'ready'];
 let uid = 0;
 const mk = (n) => ({ id: ++uid, table: [4, 7, 12, 3, 9, 15][n % 6], items: DISHES[n % DISHES.length], step: 0 });
 
@@ -26,8 +26,8 @@ function TicketRail() {
     if (still) return undefined;
     const t = setInterval(() => {
       setTickets((cur) => {
-        const next = cur.map((x) => ({ ...x, step: Math.min(x.step + 1, 4) }));
-        const trimmed = next.filter((x) => x.step < 4);
+        const next = cur.map((x) => ({ ...x, step: Math.min(x.step + 1, 3) }));
+        const trimmed = next.filter((x) => x.step < 3);
         if (trimmed.length < 3 || trimmed.every((x) => x.step > 0)) { setN((c) => c + 1); return [{ ...mk(n), step: 0 }, ...trimmed].slice(0, 3); }
         return trimmed;
       });
@@ -50,7 +50,7 @@ function TicketRail() {
             >
               <div className="flex items-center justify-between px-5 pb-4 pt-5">
                 <p className="font-display text-2xl font-extrabold">Table {t.table}</p>
-                <StatusPill status={FLOW[Math.min(t.step, 3)]} />
+                <StatusPill status={FLOW[Math.min(t.step, 2)]} />
               </div>
               <div className="tear mx-4" />
               <ul className="space-y-1 px-5 py-4 text-sm text-warm-dim">{t.items.map((i) => <li key={i}>{i}</li>)}</ul>

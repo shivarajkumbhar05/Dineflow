@@ -41,9 +41,9 @@ export default function App() {
         <Route index element={<Gate roles={['owner', 'manager']}><Dashboard /></Gate>} />
         <Route path="kitchen" element={<Gate roles={['owner', 'manager', 'kitchen']}><Kitchen /></Gate>} />
         <Route path="floor" element={<Gate roles={['owner', 'manager', 'waiter']}><Floor /></Gate>} />
-        <Route path="tables" element={<Gate roles={['owner', 'manager', 'waiter', 'cashier']}><Tables /></Gate>} />
+        <Route path="tables" element={<Gate roles={['owner', 'manager', 'cashier']}><Tables /></Gate>} />
         <Route path="menu" element={<Gate roles={['owner', 'manager']}><MenuManager /></Gate>} />
-        <Route path="billing" element={<Gate roles={['owner', 'manager', 'cashier', 'waiter']}><Billing /></Gate>} />
+        <Route path="billing" element={<Gate roles={['owner', 'manager', 'cashier']}><Billing /></Gate>} />
         <Route path="team" element={<Gate roles={['owner', 'manager']}><Team /></Gate>} />
         <Route path="settings" element={<Gate roles={['owner', 'manager']}><Settings /></Gate>} />
       </Route>

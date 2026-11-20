@@ -7,16 +7,16 @@ const { emitToRestaurant, emitToOrder } = require('../sockets');
 
 router.use(authenticate);
 
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', authorize('owner', 'manager', 'kitchen'), asyncHandler(async (req, res) => {
   const filter = { restaurant: req.tenantId };
   if (req.query.status) filter.status = req.query.status;
   if (req.query.table) filter.table = req.query.table;
   res.json(await Order.find(filter).sort('-createdAt').limit(200));
 }));
 
-// Kitchen moves orders through preparation; waiters mark served.
-const FLOW = { placed: ['accepted', 'cancelled'], accepted: ['preparing', 'cancelled'], preparing: ['ready', 'cancelled'], ready: ['served'], served: [], cancelled: [] };
-router.patch('/:id/status', authorize('owner', 'manager', 'kitchen', 'waiter'), asyncHandler(async (req, res) => {
+// New orders go straight from the queue to preparation; accepted remains for existing orders.
+const FLOW = { placed: ['preparing', 'cancelled'], accepted: ['preparing', 'cancelled'], preparing: ['ready', 'cancelled'], ready: ['served'], served: [], cancelled: [] };
+router.patch('/:id/status', authorize('owner', 'manager', 'kitchen'), asyncHandler(async (req, res) => {
   const { status } = req.body;
   const order = await Order.findOne({ _id: req.params.id, restaurant: req.tenantId });
   if (!order) throw new ApiError(404, 'Order not found');

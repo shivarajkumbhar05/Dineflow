@@ -9,6 +9,7 @@ const REASONS = [
   { key: 'assistance', label: 'I need help', icon: HandHelping },
   { key: 'water', label: 'Water please', icon: Droplets },
   { key: 'bill', label: 'Bring the bill', icon: Receipt },
+  { key: 'other', label: 'Something else', icon: BellRing },
 ];
 
 /** Call-waiter sheet + pay-bill button, shared by the menu and tracking pages. */

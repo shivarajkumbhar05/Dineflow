@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, ChefHat, ClipboardCheck, CookingPot, UtensilsCrossed, XCircle } from 'lucide-react';
+import { Check, ClipboardCheck, CookingPot, UtensilsCrossed, XCircle } from 'lucide-react';
 import { pub } from '../../lib/api';
 import { connectSocket } from '../../lib/socket';
 import { getTableToken } from '../../lib/guest';
 import GuestActions from '../../components/GuestActions';
 import { PageLoader, Empty } from '../../components/ui';
-import { cx, money } from '../../lib/format';
+import { cx, money, orderNumber } from '../../lib/format';
 
 const STEPS = [
   { key: 'placed', label: 'Order sent', note: 'The kitchen has your ticket.', icon: ClipboardCheck },
-  { key: 'accepted', label: 'Accepted', note: 'A cook has picked it up.', icon: ChefHat },
   { key: 'preparing', label: 'Cooking', note: 'Your food is on the stove.', icon: CookingPot },
   { key: 'ready', label: 'Ready', note: 'Coming to your table now.', icon: UtensilsCrossed },
   { key: 'served', label: 'Served', note: 'Enjoy your meal!', icon: Check },
@@ -35,14 +34,15 @@ export default function Track() {
 
   if (error) return <div className="grid min-h-dvh place-items-center p-6"><Empty icon={XCircle} title="Order not found">{error}</Empty></div>;
   if (!order) return <PageLoader />;
-  const idx = STEPS.findIndex((s) => s.key === order.status);
+  const status = order.status === 'accepted' ? 'preparing' : order.status;
+  const idx = STEPS.findIndex((s) => s.key === status);
   const cancelled = order.status === 'cancelled';
 
   return (
     <div className="mx-auto max-w-lg px-5 py-8">
       <Link to={`/r/${slug}`} className="text-sm font-bold text-saffron">Back to the menu</Link>
       <h1 className="mt-4 font-display text-4xl font-extrabold">{cancelled ? 'Order cancelled' : order.status === 'served' ? 'Bon appétit' : 'Cooking up your order'}</h1>
-      <p className="mt-1 text-warm-dim">Table {order.tableNumber}. This page updates on its own.</p>
+      <p className="mt-1 text-warm-dim">Table {order.tableNumber} · Order #{orderNumber(order._id)}. This page updates on its own.</p>
 
       {cancelled ? (
         <div className="mt-6 rounded-2xl bg-chili/15 p-5 text-chili ring-1 ring-chili/30"><p className="font-bold">The kitchen couldn’t make this order.</p><p className="mt-1 text-sm">Please call your waiter or place a new order.</p></div>

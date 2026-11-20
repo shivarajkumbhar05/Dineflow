@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAsync, useLive, useOrders, useTick } from '../../hooks';
 import { api } from '../../lib/api';
 import { Card, PageLoader, StatusPill, Empty } from '../../components/ui';
-import { money, timeAgo } from '../../lib/format';
+import { money, orderNumber, timeAgo } from '../../lib/format';
 
 const isToday = (d) => d && new Date(d).toDateString() === new Date().toDateString();
 
@@ -99,6 +99,7 @@ export default function Dashboard() {
             {recent.map((o) => (
               <li key={o._id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                 <span className="font-display text-lg font-bold">Table {o.tableNumber}</span>
+                <span className="text-xs font-semibold text-warm-faint">Order #{orderNumber(o._id)}</span>
                 <StatusPill status={o.status} />
                 <span className="min-w-0 flex-1 truncate text-sm text-warm-dim">{o.items.map((i) => `${i.qty}× ${i.name}`).join(', ')}</span>
                 <span className="num text-sm font-semibold">{money(o.subtotal, cur)}</span>

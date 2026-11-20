@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { Button, Card, Input, Modal, PageLoader, Pill, Select } from '../../components/ui';
 
 const ROLES = { manager: 'Manager', waiter: 'Waiter', kitchen: 'Kitchen', cashier: 'Cashier' };
-const BLURB = { owner: 'Full access', manager: 'Everything except creating managers', waiter: 'Floor, tables and billing', kitchen: 'Kitchen board', cashier: 'Tables and billing' };
+const BLURB = { owner: 'Full access', manager: 'Everything except creating managers', waiter: 'Guest requests only', kitchen: 'Kitchen board', cashier: 'Tables and billing' };
 
 export default function Team() {
   const { user } = useAuth();

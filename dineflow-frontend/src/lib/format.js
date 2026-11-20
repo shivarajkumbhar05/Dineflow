@@ -13,7 +13,7 @@ export const minutesSince = (d) => Math.floor((Date.now() - new Date(d).getTime(
 
 export const ORDER_STATUS = {
   placed:    { label: 'New',       color: 'text-saffron bg-saffron/15 ring-saffron/40' },
-  accepted:  { label: 'Accepted',  color: 'text-sky bg-sky/15 ring-sky/40' },
+  accepted:  { label: 'Cooking',   color: 'text-chili bg-chili/15 ring-chili/40' },
   preparing: { label: 'Cooking',   color: 'text-chili bg-chili/15 ring-chili/40' },
   ready:     { label: 'Ready',     color: 'text-pista bg-pista/15 ring-pista/40' },
   served:    { label: 'Served',    color: 'text-warm-dim bg-white/5 ring-white/10' },
@@ -21,8 +21,9 @@ export const ORDER_STATUS = {
 };
 
 // Mirrors the backend FLOW so buttons only offer valid moves.
-export const NEXT_STATUS = { placed: 'accepted', accepted: 'preparing', preparing: 'ready', ready: 'served' };
-export const NEXT_LABEL = { placed: 'Accept', accepted: 'Start cooking', preparing: 'Mark ready', ready: 'Mark served' };
+export const NEXT_STATUS = { placed: 'preparing', accepted: 'preparing', preparing: 'ready', ready: 'served' };
+export const NEXT_LABEL = { placed: 'Start cooking', accepted: 'Start cooking', preparing: 'Mark ready', ready: 'Mark served' };
+export const orderNumber = (id) => String(id || '').slice(-6).toUpperCase();
 
 export const ROLE_HOME = { owner: '/app', manager: '/app', kitchen: '/app/kitchen', waiter: '/app/floor', cashier: '/app/billing' };
 export const cx = (...a) => a.filter(Boolean).join(' ');
