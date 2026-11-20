@@ -20,7 +20,7 @@ function printQr(t, restaurantName) {
   const svg = document.getElementById(`qr-${t._id}`)?.outerHTML || '';
   const w = window.open('', '_blank', 'width=520,height=700');
   if (!w) return toast.error('Allow pop-ups to print the QR code.');
-  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan to order from your table</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2></body>`);
+  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan with your Android or iPhone camera to order</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2></body>`);
   w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
 }
 
@@ -88,6 +88,7 @@ export default function Tables() {
         {qr && (
           <div className="text-center">
             <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG id={`qr-${qr._id}`} value={qr.qrUrl} size={220} level="M" /></div>
+            <p className="mt-3 text-sm text-warm-dim">Scan with your Android or iPhone camera. No app is needed.</p>
             <p className="mt-4 break-all rounded-lg bg-ink/70 px-3 py-2 text-xs text-warm-dim">{qr.qrUrl}</p>
             <div className="mt-4 flex gap-2">
               <Button variant="soft" className="flex-1" onClick={() => { navigator.clipboard?.writeText(qr.qrUrl); toast.success('Link copied'); }}><Copy className="h-4 w-4" />Copy link</Button>

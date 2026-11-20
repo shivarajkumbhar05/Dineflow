@@ -35,7 +35,7 @@ export default function StaffLayout() {
   const kitchenSide = ['owner', 'manager', 'kitchen'].includes(user.role);
   const floorSide = ['owner', 'manager', 'waiter'].includes(user.role);
   useLive(socket, {
-    'order:new': (o) => { if (kitchenSide) { ding(880); toast(`New order for table ${o.tableNumber}`, { icon: '🧾', description: `${o.items?.length || 0} items` }); } },
+    'order:new': (o) => { if (kitchenSide || user.role === 'waiter') { ding(880); toast(`New order for table ${o.tableNumber}`, { icon: '🧾', description: `${o.items?.length || 0} items` }); } },
     'kitchen:ready': (p) => { if (['owner', 'manager'].includes(user.role)) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
     'waiter:call': (c) => { if (floorSide) { ding(520); toast(`Table ${c.tableNumber} needs ${c.reason === 'bill' ? 'the bill' : c.reason === 'water' ? 'water' : 'a waiter'}`, { icon: '🔔' }); } },
     'payment:confirmed': (p) => toast.success(`Payment received: ${money(p.total, restaurant?.currency)}`),

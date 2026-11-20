@@ -31,8 +31,9 @@ export default function GuestActions({ slug, token, restaurantName }) {
     <>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="soft" onClick={() => setOpen(true)}><BellRing className="h-4 w-4" />Call waiter</Button>
-        <Button variant="soft" loading={busy === 'pay'} onClick={pay}><Wallet className="h-4 w-4" />Pay bill</Button>
+        <Button variant="soft" loading={busy === 'pay'} onClick={pay}><Wallet className="h-4 w-4" />Pay online</Button>
       </div>
+      <p className="mt-2 text-center text-xs text-warm-faint">Pay online here, or pay cash at the counter.</p>
       <Modal open={open} onClose={() => setOpen(false)} title="How can we help?">
         <div className="space-y-2">
           {REASONS.map(({ key, label, icon: Icon }) => (

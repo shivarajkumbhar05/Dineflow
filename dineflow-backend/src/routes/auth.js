@@ -6,10 +6,20 @@ const { Restaurant, User } = require('../models');
 const { sign } = require('../utils/jwt');
 const { authenticate, authorize } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimit');
+const mongoose = require('mongoose');
 
 const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 const emailOk = (e) => typeof e === 'string' && /^\S+@\S+\.\S+$/.test(e);
 const publicUser = (u) => ({ id: u._id, name: u.name, email: u.email, role: u.role, restaurant: u.restaurant });
+const staffRoles = ['manager', 'waiter', 'kitchen', 'cashier'];
+
+async function findManagedStaff(req, id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) throw new ApiError(404, 'Staff member not found');
+  const staff = await User.findOne({ _id: id, restaurant: req.tenantId });
+  if (!staff || staff.role === 'owner') throw new ApiError(404, 'Staff member not found');
+  if (req.user.role === 'manager' && staff.role === 'manager') throw new ApiError(403, 'Only the owner can manage managers');
+  return staff;
+}
 
 // Register a new restaurant + its owner account
 router.post('/register', authLimiter, asyncHandler(async (req, res) => {
@@ -45,7 +55,7 @@ router.get('/me', authenticate, asyncHandler(async (req, res) => {
 // Owner/manager creates staff accounts in their own restaurant
 router.post('/staff', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
-  if (!['manager', 'waiter', 'kitchen', 'cashier'].includes(role)) throw new ApiError(400, 'Invalid role');
+  if (!staffRoles.includes(role)) throw new ApiError(400, 'Invalid role');
   if (role === 'manager' && req.user.role !== 'owner') throw new ApiError(403, 'Only the owner can create managers');
   if (!name || !emailOk(email) || typeof password !== 'string' || password.length < 8) throw new ApiError(400, 'Invalid staff details');
   const user = await User.create({ restaurant: req.tenantId, name, email, role, passwordHash: await bcrypt.hash(password, 12) });
@@ -54,6 +64,46 @@ router.post('/staff', authenticate, authorize('owner', 'manager'), asyncHandler(
 
 router.get('/staff', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   res.json(await User.find({ restaurant: req.tenantId }).select('name email role isActive'));
+}));
+
+router.patch('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  const { name, email, password, role, isActive } = req.body;
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 80) throw new ApiError(400, 'Name must be 1-80 characters');
+    staff.name = name.trim();
+  }
+  if (email !== undefined) {
+    if (!emailOk(email)) throw new ApiError(400, 'Invalid email');
+    const normalizedEmail = email.toLowerCase();
+    if (await User.exists({ email: normalizedEmail, _id: { $ne: staff._id } })) throw new ApiError(409, 'Email already registered');
+    staff.email = normalizedEmail;
+  }
+  if (role !== undefined) {
+    if (!staffRoles.includes(role)) throw new ApiError(400, 'Invalid role');
+    if (role === 'manager' && req.user.role !== 'owner') throw new ApiError(403, 'Only the owner can assign managers');
+    staff.role = role;
+  }
+  if (password !== undefined) {
+    if (typeof password !== 'string' || password.length < 8) throw new ApiError(400, 'Password must be at least 8 characters');
+    staff.passwordHash = await bcrypt.hash(password, 12);
+  }
+  if (isActive !== undefined) {
+    if (typeof isActive !== 'boolean') throw new ApiError(400, 'isActive must be a boolean');
+    if (!isActive && String(staff._id) === String(req.user._id)) throw new ApiError(400, 'You cannot deactivate your own account');
+    staff.isActive = isActive;
+  }
+  await staff.save();
+  res.json({ ...publicUser(staff), isActive: staff.isActive });
+}));
+
+router.delete('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  if (String(staff._id) === String(req.user._id)) throw new ApiError(400, 'You cannot deactivate your own account');
+  staff.isActive = false;
+  await staff.save();
+  res.json({ ok: true });
 }));
 
 module.exports = router;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, UserRound } from 'lucide-react';
+import { Pencil, Plus, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../hooks';
@@ -7,20 +7,46 @@ import { api } from '../../lib/api';
 import { Button, Card, Input, Modal, PageLoader, Pill, Select } from '../../components/ui';
 
 const ROLES = { manager: 'Manager', waiter: 'Waiter', kitchen: 'Kitchen', cashier: 'Cashier' };
-const BLURB = { owner: 'Full access', manager: 'Everything except creating managers', waiter: 'Guest requests only', kitchen: 'Kitchen board', cashier: 'Tables and billing' };
+const BLURB = { owner: 'Full access', manager: 'Everything except creating managers', waiter: 'Order and guest-request alerts', kitchen: 'Kitchen board', cashier: 'Tables and billing' };
 
 export default function Team() {
   const { user } = useAuth();
   const { data, loading, reload } = useAsync(() => api('/api/auth/staff'));
-  const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [editing, setEditing] = useState(null);
   const [f, setF] = useState({ name: '', email: '', password: '', role: 'waiter' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const roles = user.role === 'owner' ? Object.keys(ROLES) : Object.keys(ROLES).filter((r) => r !== 'manager');
 
-  const add = async (e) => {
+  const close = () => { setOpen(false); setEditing(null); setF({ name: '', email: '', password: '', role: 'waiter' }); };
+  const edit = (member) => {
+    setEditing(member);
+    setF({ name: member.name, email: member.email, password: '', role: member.role });
+    setOpen(true);
+  };
+  const save = async (e) => {
     e.preventDefault(); setBusy(true);
-    try { await api('/api/auth/staff', { method: 'POST', body: f }); toast.success(`${f.name} can now sign in`); setOpen(false); setF({ name: '', email: '', password: '', role: 'waiter' }); reload(); }
+    try {
+      if (editing) {
+        const body = { name: f.name, email: f.email, role: f.role };
+        if (f.password) body.password = f.password;
+        await api(`/api/auth/staff/${editing._id}`, { method: 'PATCH', body });
+        toast.success(`${f.name}'s account updated`);
+      } else {
+        await api('/api/auth/staff', { method: 'POST', body: f });
+        toast.success(`${f.name} can now sign in`);
+      }
+      close(); reload();
+    }
     catch (x) { toast.error(x.message); } finally { setBusy(false); }
+  };
+  const setActive = async (member) => {
+    if (member.isActive && !window.confirm(`Deactivate ${member.name}'s account? They will no longer be able to sign in.`)) return;
+    try {
+      if (member.isActive) await api(`/api/auth/staff/${member._id}`, { method: 'DELETE' });
+      else await api(`/api/auth/staff/${member._id}`, { method: 'PATCH', body: { isActive: true } });
+      toast.success(member.isActive ? 'Account deactivated' : 'Account reactivated');
+      reload();
+    } catch (x) { toast.error(x.message); }
   };
   if (loading && !data) return <PageLoader />;
   return (
@@ -31,20 +57,26 @@ export default function Team() {
       </div>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {(data || []).map((m) => (
-          <Card key={m._id} className="flex items-center gap-4">
+          <Card key={m._id} className="flex flex-wrap items-center gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-saffron/15 font-display text-lg font-extrabold text-saffron">{m.name?.[0]?.toUpperCase() || <UserRound />}</span>
             <div className="min-w-0 flex-1"><p className="truncate font-bold">{m.name}</p><p className="truncate text-sm text-warm-dim">{m.email}</p><p className="mt-1 text-xs text-warm-faint">{BLURB[m.role]}</p></div>
-            <Pill tone={m.role === 'owner' ? 'warn' : 'neutral'}>{m.role}</Pill>
+            <div className="flex items-center gap-2"><Pill tone={m.role === 'owner' ? 'warn' : 'neutral'}>{m.role}</Pill><Pill tone={m.isActive ? 'good' : 'bad'}>{m.isActive ? 'Active' : 'Inactive'}</Pill></div>
+            {m.role !== 'owner' && String(m._id) !== String(user.id) && !(user.role === 'manager' && m.role === 'manager') && (
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Button variant="soft" size="sm" onClick={() => edit(m)}><Pencil className="h-4 w-4" />Edit</Button>
+                <Button variant={m.isActive ? 'danger' : 'success'} size="sm" onClick={() => setActive(m)}>{m.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+              </div>
+            )}
           </Card>
         ))}
       </ul>
-      <Modal open={open} onClose={() => setOpen(false)} title="Add a team member">
-        <form onSubmit={add} className="space-y-4">
+      <Modal open={open} onClose={close} title={editing ? 'Edit team member' : 'Add a team member'}>
+        <form onSubmit={save} className="space-y-4">
           <Input label="Full name" required value={f.name} onChange={set('name')} />
           <Input label="Email" type="email" required value={f.email} onChange={set('email')} />
-          <Input label="Temporary password" type="password" minLength={8} required value={f.password} onChange={set('password')} hint="At least 8 characters. Share it privately." />
+          <Input label={editing ? 'New password (optional)' : 'Temporary password'} type="password" minLength={8} required={!editing} value={f.password} onChange={set('password')} hint="At least 8 characters. Share it privately." />
           <Select label="Role" value={f.role} onChange={set('role')}>{roles.map((r) => <option key={r} value={r}>{ROLES[r]}</option>)}</Select>
-          <Button type="submit" className="w-full" loading={busy}>Create login</Button>
+          <Button type="submit" className="w-full" loading={busy}>{editing ? 'Save changes' : 'Create login'}</Button>
         </form>
       </Modal>
     </div>
