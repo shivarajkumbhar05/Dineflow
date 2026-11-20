@@ -1,4 +1,7 @@
-export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+const defaultApiUrl = import.meta.env.PROD
+  ? 'https://dineflow-6uzf.onrender.com'
+  : 'http://localhost:5000';
+export const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/$/, '');
 const TOKEN_KEY = 'df_token';
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);

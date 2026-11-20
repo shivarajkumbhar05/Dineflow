@@ -37,7 +37,7 @@ Staff only see the screens their role allows. Alerts (new order, ready to serve,
 ## Deploy (Vercel)
 
 1. Import this folder as a project. The framework preset is **Vite**.
-2. Set `VITE_API_URL` to your backend URL, for example `https://api.yourdomain.com`.
+2. The production build defaults to `https://dineflow-6uzf.onrender.com`. Set `VITE_API_URL` in the Vercel project to override it.
 3. Deploy. `vercel.json` already rewrites all routes to `index.html`, so deep links and QR links work.
 4. In the backend, set `FRONTEND_URL` to your Vercel domain and add it to `CORS_ORIGINS`. Table QR codes are built from `FRONTEND_URL`, so reprint them after changing it.
 
