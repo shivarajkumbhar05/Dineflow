@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks';
+import { api } from '../lib/api';
 import { Logo } from './ui';
 import { cx, ding, money } from '../lib/format';
 
@@ -23,6 +24,13 @@ export default function StaffLayout() {
   const nav = useNavigate();
   const [online, setOnline] = useState(false);
   const items = NAV.filter((n) => n.roles.includes(user.role));
+  const signOut = async () => {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+      logout();
+      nav('/login');
+    } catch (e) { toast.error(`Could not record check-out: ${e.message}`); }
+  };
 
   useEffect(() => {
     if (!socket) return undefined;
@@ -36,7 +44,8 @@ export default function StaffLayout() {
   const floorSide = ['owner', 'manager', 'waiter'].includes(user.role);
   useLive(socket, {
     'order:new': (o) => { if (kitchenSide || user.role === 'waiter') { ding(880); toast(`New order for table ${o.tableNumber}`, { icon: '🧾', description: `${o.items?.length || 0} items` }); } },
-    'kitchen:ready': (p) => { if (['owner', 'manager'].includes(user.role)) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
+    'order:status': (p) => { if (user.role === 'waiter' && p.status === 'preparing') toast(`Table ${p.tableNumber}: order is cooking`); },
+    'kitchen:ready': (p) => { if (floorSide) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
     'waiter:call': (c) => { if (floorSide) { ding(520); toast(`Table ${c.tableNumber} needs ${c.reason === 'bill' ? 'the bill' : c.reason === 'water' ? 'water' : 'a waiter'}`, { icon: '🔔' }); } },
     'payment:confirmed': (p) => toast.success(`Payment received: ${money(p.total, restaurant?.currency)}`),
   });
@@ -60,7 +69,7 @@ export default function StaffLayout() {
             <span className={cx('inline-flex items-center gap-1.5 text-xs font-semibold', online ? 'text-pista' : 'text-chili')}>
               {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}{online ? 'Live' : 'Reconnecting'}
             </span>
-            <button onClick={() => { logout(); nav('/login'); }} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim hover:bg-white/10 hover:text-warm"><LogOut className="h-4 w-4" /></button>
+            <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim hover:bg-white/10 hover:text-warm"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </aside>
@@ -70,7 +79,7 @@ export default function StaffLayout() {
           <Logo className="text-lg" />
           <div className="flex items-center gap-3">
             <span className={cx('inline-flex items-center gap-1 text-xs font-semibold', online ? 'text-pista' : 'text-chili')}><BellRing className="h-3.5 w-3.5" />{online ? 'Live' : 'Offline'}</span>
-            <button onClick={() => { logout(); nav('/login'); }} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim"><LogOut className="h-5 w-5" /></button>
+            <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim"><LogOut className="h-5 w-5" /></button>
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1400px] p-4 sm:p-6 lg:p-8"><Outlet /></main>

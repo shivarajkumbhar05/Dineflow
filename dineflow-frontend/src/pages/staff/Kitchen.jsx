@@ -9,9 +9,9 @@ import { Button, Empty, PageLoader } from '../../components/ui';
 import { cx, minutesSince, NEXT_LABEL, NEXT_STATUS, ORDER_STATUS, orderNumber } from '../../lib/format';
 
 const COLS = [
-  { key: 'placed', title: 'New', bar: 'bg-saffron' },
+  { key: 'placed', title: 'New orders', bar: 'bg-saffron' },
   { key: 'preparing', title: 'Cooking', bar: 'bg-chili' },
-  { key: 'ready', title: 'Ready for pick-up', bar: 'bg-pista' },
+  { key: 'ready', title: 'Ready to serve', bar: 'bg-pista' },
 ];
 
 function KitchenTicket({ o, onMove, busy }) {
@@ -48,7 +48,6 @@ export default function Kitchen() {
   useTick(20000);
   const { data, setData, loading, error } = useOrders(socket);
   const [busy, setBusy] = useState(null);
-  const [tab, setTab] = useState('placed');
 
   const move = async (o, status) => {
     if (status === 'cancelled' && !window.confirm(`Cancel the order for table ${o.tableNumber}?`)) return;
@@ -71,18 +70,10 @@ export default function Kitchen() {
         <p className="num font-display text-2xl font-extrabold text-saffron">{orders.length}<span className="ml-1.5 text-sm font-semibold text-warm-dim">open</span></p>
       </div>
 
-      <div className="mb-4 flex gap-2 overflow-x-auto xl:hidden" role="tablist">
+      <div className="grid gap-5 xl:grid-cols-3">
         {COLS.map((c) => (
-          <button key={c.key} role="tab" aria-selected={tab === c.key} onClick={() => setTab(c.key)} className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-bold ring-1', tab === c.key ? 'bg-saffron text-ink ring-saffron' : 'bg-plum text-warm-dim ring-plum-line')}>
-            {c.title} <span className="num ml-1">{by(c.key).length}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-4">
-        {COLS.map((c) => (
-          <section key={c.key} className={cx(tab === c.key ? 'block' : 'hidden', 'xl:block')} aria-label={c.title}>
-            <h2 className="mb-3 hidden items-center gap-2 font-display text-lg font-bold xl:flex"><span className={cx('h-3 w-3 rounded-full', c.bar)} />{c.title}<span className="num text-warm-faint">{by(c.key).length}</span></h2>
+          <section key={c.key} aria-label={c.title}>
+            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold"><span className={cx('h-3 w-3 rounded-full', c.bar)} />{c.title}<span className="num text-warm-faint">{by(c.key).length}</span></h2>
             <ul className="space-y-4">
               <AnimatePresence initial={false}>{by(c.key).map((o) => <KitchenTicket key={o._id} o={o} onMove={move} busy={busy === o._id} />)}</AnimatePresence>
             </ul>

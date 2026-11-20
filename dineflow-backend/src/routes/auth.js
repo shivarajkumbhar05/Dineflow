@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
-const { Restaurant, User } = require('../models');
+const { Restaurant, User, WaiterShift } = require('../models');
 const { sign } = require('../utils/jwt');
 const { authenticate, authorize } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimit');
@@ -44,12 +45,34 @@ router.post('/login', authLimiter, asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
   const ok = user && user.isActive && (await bcrypt.compare(password, user.passwordHash));
   if (!ok) throw new ApiError(401, 'Invalid email or password');
-  res.json({ token: sign(user), user: publicUser(user) });
+  let sessionId;
+  let checkedInAt;
+  if (user.role === 'waiter') {
+    sessionId = crypto.randomUUID();
+    const shift = await WaiterShift.create({ restaurant: user.restaurant, waiter: user._id, sessionId });
+    checkedInAt = shift.checkedInAt;
+  }
+  res.json({ token: sign(user, sessionId), user: { ...publicUser(user), ...(checkedInAt ? { checkedInAt } : {}) } });
 }));
 
 router.get('/me', authenticate, asyncHandler(async (req, res) => {
   const restaurant = await Restaurant.findById(req.tenantId);
-  res.json({ user: publicUser(req.user), restaurant });
+  let checkedInAt;
+  if (req.user.role === 'waiter' && req.sessionId) {
+    const shift = await WaiterShift.findOne({ restaurant: req.tenantId, waiter: req.user._id, sessionId: req.sessionId, checkedOutAt: null }).select('checkedInAt');
+    checkedInAt = shift?.checkedInAt;
+  }
+  res.json({ user: { ...publicUser(req.user), ...(checkedInAt ? { checkedInAt } : {}) }, restaurant });
+}));
+
+router.post('/logout', authenticate, asyncHandler(async (req, res) => {
+  if (req.user.role === 'waiter' && req.sessionId) {
+    await WaiterShift.updateOne(
+      { restaurant: req.tenantId, waiter: req.user._id, sessionId: req.sessionId, checkedOutAt: null },
+      { $set: { checkedOutAt: new Date() } }
+    );
+  }
+  res.json({ ok: true });
 }));
 
 // Owner/manager creates staff accounts in their own restaurant
@@ -64,6 +87,15 @@ router.post('/staff', authenticate, authorize('owner', 'manager'), asyncHandler(
 
 router.get('/staff', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   res.json(await User.find({ restaurant: req.tenantId }).select('name email role isActive'));
+}));
+
+router.get('/staff/:id/shifts', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  if (staff.role !== 'waiter') throw new ApiError(400, 'Check-in history is only available for waiters');
+  res.json(await WaiterShift.find({ restaurant: req.tenantId, waiter: staff._id })
+    .sort('-checkedInAt')
+    .limit(50)
+    .select('checkedInAt checkedOutAt'));
 }));
 
 router.patch('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
@@ -93,6 +125,10 @@ router.patch('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHan
     if (typeof isActive !== 'boolean') throw new ApiError(400, 'isActive must be a boolean');
     if (!isActive && String(staff._id) === String(req.user._id)) throw new ApiError(400, 'You cannot deactivate your own account');
     staff.isActive = isActive;
+    if (!isActive) await WaiterShift.updateMany(
+      { restaurant: req.tenantId, waiter: staff._id, checkedOutAt: null },
+      { $set: { checkedOutAt: new Date() } }
+    );
   }
   await staff.save();
   res.json({ ...publicUser(staff), isActive: staff.isActive });
@@ -102,6 +138,10 @@ router.delete('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHa
   const staff = await findManagedStaff(req, req.params.id);
   if (String(staff._id) === String(req.user._id)) throw new ApiError(400, 'You cannot deactivate your own account');
   staff.isActive = false;
+  await WaiterShift.updateMany(
+    { restaurant: req.tenantId, waiter: staff._id, checkedOutAt: null },
+    { $set: { checkedOutAt: new Date() } }
+  );
   await staff.save();
   res.json({ ok: true });
 }));

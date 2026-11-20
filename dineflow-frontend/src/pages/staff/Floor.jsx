@@ -9,7 +9,7 @@ import { timeAgo } from '../../lib/format';
 const REASON = { assistance: { icon: HandHelping, text: 'Needs assistance' }, water: { icon: Droplets, text: 'Wants water' }, bill: { icon: Receipt, text: 'Asked for the bill' }, other: { icon: BellRing, text: 'Needs something' } };
 
 export default function Floor() {
-  const { socket } = useAuth();
+  const { socket, user } = useAuth();
   useTick(20000);
   const calls = useAsync(() => api('/api/waiter/calls'));
   useLive(socket, {
@@ -23,7 +23,11 @@ export default function Floor() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Waiter requests</h1><p className="mt-1 text-warm-dim">Guest requests for water, help, bills or anything else.</p></div>
+      <div>
+        <h1 className="font-display text-3xl font-extrabold sm:text-4xl">Waiter requests</h1>
+        <p className="mt-1 text-warm-dim">Guest requests for water, help, bills or anything else.</p>
+        {user.checkedInAt && <p className="mt-2 text-sm text-pista">Checked in at {new Date(user.checkedInAt).toLocaleString()}</p>}
+      </div>
       <section>
         <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-bold text-saffron"><BellRing className="h-5 w-5" />Open requests <span className="num text-warm-faint">{(calls.data || []).length}</span></h2>
         <div className="space-y-3">

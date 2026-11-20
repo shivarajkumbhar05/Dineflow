@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Plus, UserRound } from 'lucide-react';
+import { Clock, Pencil, Plus, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../hooks';
@@ -13,6 +13,7 @@ export default function Team() {
   const { user } = useAuth();
   const { data, loading, reload } = useAsync(() => api('/api/auth/staff'));
   const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [editing, setEditing] = useState(null);
+  const [shiftsOpen, setShiftsOpen] = useState(false); const [shiftsLoading, setShiftsLoading] = useState(false); const [shifts, setShifts] = useState([]); const [selectedWaiter, setSelectedWaiter] = useState('');
   const [f, setF] = useState({ name: '', email: '', password: '', role: 'waiter' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const roles = user.role === 'owner' ? Object.keys(ROLES) : Object.keys(ROLES).filter((r) => r !== 'manager');
@@ -48,6 +49,15 @@ export default function Team() {
       reload();
     } catch (x) { toast.error(x.message); }
   };
+  const viewShifts = async (member) => {
+    setSelectedWaiter(member.name);
+    setShifts([]);
+    setShiftsOpen(true);
+    setShiftsLoading(true);
+    try { setShifts(await api(`/api/auth/staff/${member._id}/shifts`)); }
+    catch (x) { toast.error(x.message); }
+    finally { setShiftsLoading(false); }
+  };
   if (loading && !data) return <PageLoader />;
   return (
     <div className="space-y-6">
@@ -63,6 +73,7 @@ export default function Team() {
             <div className="flex items-center gap-2"><Pill tone={m.role === 'owner' ? 'warn' : 'neutral'}>{m.role}</Pill><Pill tone={m.isActive ? 'good' : 'bad'}>{m.isActive ? 'Active' : 'Inactive'}</Pill></div>
             {m.role !== 'owner' && String(m._id) !== String(user.id) && !(user.role === 'manager' && m.role === 'manager') && (
               <div className="flex w-full gap-2 sm:w-auto">
+                {m.role === 'waiter' && <Button variant="soft" size="sm" onClick={() => viewShifts(m)}><Clock className="h-4 w-4" />Check-ins</Button>}
                 <Button variant="soft" size="sm" onClick={() => edit(m)}><Pencil className="h-4 w-4" />Edit</Button>
                 <Button variant={m.isActive ? 'danger' : 'success'} size="sm" onClick={() => setActive(m)}>{m.isActive ? 'Deactivate' : 'Reactivate'}</Button>
               </div>
@@ -78,6 +89,18 @@ export default function Team() {
           <Select label="Role" value={f.role} onChange={set('role')}>{roles.map((r) => <option key={r} value={r}>{ROLES[r]}</option>)}</Select>
           <Button type="submit" className="w-full" loading={busy}>{editing ? 'Save changes' : 'Create login'}</Button>
         </form>
+      </Modal>
+      <Modal open={shiftsOpen} onClose={() => setShiftsOpen(false)} title={`${selectedWaiter} check-in history`}>
+        {shiftsLoading ? <PageLoader /> : shifts.length === 0 ? <p className="text-sm text-warm-dim">No check-ins recorded yet.</p> : (
+          <ul className="space-y-3">
+            {shifts.map((shift) => (
+              <li key={shift._id} className="rounded-xl bg-ink/70 p-3 text-sm ring-1 ring-plum-line">
+                <p><span className="font-semibold text-warm-dim">Check-in:</span> {new Date(shift.checkedInAt).toLocaleString()}</p>
+                <p className="mt-1"><span className="font-semibold text-warm-dim">Check-out:</span> {shift.checkedOutAt ? new Date(shift.checkedOutAt).toLocaleString() : 'Currently checked in'}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Modal>
     </div>
   );

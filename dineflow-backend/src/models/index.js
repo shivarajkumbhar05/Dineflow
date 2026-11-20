@@ -6,5 +6,6 @@ module.exports = {
   MenuItem: require('./MenuItem'),
   Order: require('./Order'),
   WaiterCall: require('./WaiterCall'),
+  WaiterShift: require('./WaiterShift'),
   Bill: require('./Bill'),
 };

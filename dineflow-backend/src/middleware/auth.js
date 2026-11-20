@@ -15,6 +15,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
   if (!user || !user.isActive) throw new ApiError(401, 'Account disabled or not found');
   req.user = user;
   req.tenantId = user.restaurant;
+  req.sessionId = payload.sid;
   next();
 });
 
