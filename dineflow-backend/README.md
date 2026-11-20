@@ -39,8 +39,8 @@ Generate a JWT secret:
 |---|---|---|
 | NODE_ENV | yes | `development` or `production` |
 | PORT | no | default 5000 (hosts usually inject it) |
-| CORS_ORIGINS | yes | comma list of allowed frontend origins, e.g. `https://app.yourdomain.com` |
-| FRONTEND_URL | yes | public frontend URL (used inside QR links) |
+| CORS_ORIGINS | yes | comma-separated allowed frontend origins; Render is configured for `https://dineflow-two-chi.vercel.app` |
+| FRONTEND_URL | yes | public frontend URL used inside QR links; Render is configured for `https://dineflow-two-chi.vercel.app` |
 | MONGODB_URI | yes | Atlas connection string (**secret**) |
 | MONGODB_DB_NAME | no | default `dineflow` |
 | MONGO_MAX_POOL_SIZE / MONGO_MIN_POOL_SIZE | no | connection pool, default 20 / 2 |
@@ -97,8 +97,8 @@ Customers connect without a token and emit `track:order` with `{ trackingCode }`
 4. Custom domain: Render -> Settings -> Custom Domains -> add `api.yourdomain.com` and create the DNS CNAME. HTTPS certificates are issued automatically.
 5. CI/CD: in Render copy the **Deploy Hook URL**, add it to GitHub -> Settings -> Secrets as `RENDER_DEPLOY_HOOK_URL`. Pushes to `main` run `.github/workflows/ci.yml` and deploy only if validation passes.
 
-**Frontend (Vercel):** import the frontend repo, set `NEXT_PUBLIC_API_URL=https://api.yourdomain.com` (or your framework's equivalent), add your domain under Vercel -> Domains.
-Then update backend `CORS_ORIGINS` and `FRONTEND_URL` with the final frontend domain.
+**Frontend (Vercel):** import the frontend repo, set `VITE_API_URL=https://dineflow-6uzf.onrender.com`, and add your domain under Vercel -> Domains.
+The Render Blueprint sets `CORS_ORIGINS` and `FRONTEND_URL` to `https://dineflow-two-chi.vercel.app`. If the frontend domain changes, update both values in Render's environment settings.
 
 **Razorpay:** Dashboard -> Webhooks -> URL `https://api.yourdomain.com/api/payments/razorpay/webhook`, events `payment.captured` and `order.paid`, secret = `RAZORPAY_WEBHOOK_SECRET`.
 
