@@ -93,7 +93,9 @@ export default function Dashboard() {
     { icon: Armchair, label: 'Tables in use', value: `${d.occupied}/${d.tableCount}`, sub: `${money(d.unpaid, cur)} still unpaid`, tone: 'text-sky' },
     { icon: ConciergeBell, label: 'Waiting on a waiter', value: (calls.data || []).length, sub: 'open requests', tone: 'text-saffron' },
   ];
-  const recent = (orders.data || []).slice(0, 8);
+  const recent = [...(orders.data || [])]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 8);
 
   return (
     <div className="space-y-6">

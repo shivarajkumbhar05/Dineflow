@@ -16,32 +16,58 @@ function printBill(bill, restaurantName, currency) {
   const win = window.open('', '_blank', 'width=520,height=720');
   if (!win) return toast.error('Allow pop-ups to print or save this bill.');
   const items = bill.items.map((item) => `
-    <tr><td>${escapeHtml(item.qty)} × ${escapeHtml(item.name)}</td><td>${escapeHtml(money(item.price * item.qty, currency))}</td></tr>
+    <tr>
+      <td><span class="qty">${escapeHtml(item.qty)} ×</span> ${escapeHtml(item.name)}</td>
+      <td>${escapeHtml(money(item.price * item.qty, currency))}</td>
+    </tr>
   `).join('');
   const issued = new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bill ${escapeHtml(bill._id)}</title>
     <style>
-      *{box-sizing:border-box}body{margin:0;padding:32px;color:#211b26;font:14px/1.5 system-ui,sans-serif}
-      main{max-width:420px;margin:auto}h1{margin:0;font-size:24px}p{margin:4px 0;color:#625b66}
-      .meta{margin:20px 0;padding:12px 0;border-block:1px dashed #aaa}
-      table{width:100%;border-collapse:collapse}td{padding:7px 0;vertical-align:top}td:last-child{text-align:right;white-space:nowrap}
-      .totals{margin-top:14px;padding-top:12px;border-top:1px dashed #aaa}.total{font-size:20px;font-weight:800}
-      footer{margin-top:24px;text-align:center;color:#625b66;font-size:12px}
-      @media print{body{padding:0}main{max-width:none}}
+      *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body{margin:0;padding:28px;background:#fff6df;color:#24152f;font:14px/1.45 system-ui,sans-serif}
+      main{max-width:720px;margin:auto;overflow:hidden;border:1px solid #edcf91;border-radius:18px;background:#fff;box-shadow:0 12px 40px rgba(87,54,18,.12)}
+      .header{display:flex;align-items:center;justify-content:space-between;padding:24px 28px;background:linear-gradient(135deg,#ffb020 0%,#ff7a45 100%);color:#24152f}
+      .brand{display:flex;align-items:center;gap:14px}
+      .logo{display:grid;width:54px;height:54px;place-items:center;border:2px solid rgba(36,21,47,.18);border-radius:16px;background:#fff;font-size:25px;font-weight:900}
+      h1{margin:0;font-size:25px;line-height:1.1}.eyebrow{margin:4px 0 0;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+      .status{padding:8px 12px;border-radius:999px;background:${bill.status === 'paid' ? '#24152f' : '#fff'};color:${bill.status === 'paid' ? '#fff' : '#a53a2a'};font-size:12px;font-weight:900;text-transform:uppercase}
+      .content{padding:24px 28px}
+      .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+      .meta-card{padding:12px 14px;border:1px solid #f0dfbb;border-radius:12px;background:#fffaf0}
+      .label{display:block;margin-bottom:3px;color:#806e78;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+      .value{font-size:14px;font-weight:800}
+      table{width:100%;border-collapse:collapse}thead th{padding:10px 12px;border-radius:8px;background:#2e173f;color:#fff;font-size:11px;text-align:left;text-transform:uppercase}thead th:last-child{text-align:right}
+      tbody td{padding:13px 12px;border-bottom:1px solid #eee5d2;vertical-align:top}tbody td:last-child{text-align:right;white-space:nowrap;font-weight:800}
+      .qty{display:inline-block;margin-right:5px;color:#c46a12;font-weight:900}
+      .totals{width:270px;margin:18px 0 0 auto;padding:12px 14px;border-radius:12px;background:#fff6df}
+      .totals table td{padding:5px 0;border:0;font-size:13px}.totals table td:last-child{text-align:right}.totals .grand td{padding-top:10px;border-top:2px solid #f0b84d;color:#24152f;font-size:19px;font-weight:900}
+      footer{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border-top:1px dashed #dfc98f;color:#806e78;font-size:12px;text-align:center}
+      footer strong{color:#c36b12}
+      @page{size:A4;margin:12mm}
+      @media print{body{padding:0;background:#fff}main{max-width:none;border:0;border-radius:0;box-shadow:none}.header{border-radius:0}}
+      @media(max-width:600px){body{padding:12px}.header,.content{padding:18px}.meta{grid-template-columns:1fr 1fr}.totals{width:100%}}
     </style></head><body><main>
-      <h1>${escapeHtml(restaurantName || 'Restaurant')}</h1>
-      <p>Payment receipt</p>
-      <div class="meta"><div><strong>Table:</strong> ${escapeHtml(bill.tableNumber)}</div>
-      <div><strong>Bill:</strong> ${escapeHtml(String(bill._id).slice(-6).toUpperCase())}</div>
-      <div><strong>Date:</strong> ${escapeHtml(issued)}</div>
-      <div><strong>Status:</strong> ${bill.status === 'paid' ? `Paid${bill.paymentMethod ? ` · ${escapeHtml(bill.paymentMethod)}` : ''}` : 'Unpaid'}</div></div>
-      <table><tbody>${items}</tbody></table>
-      <div class="totals"><table>
+      <header class="header">
+        <div class="brand"><div class="logo">D</div><div><h1>${escapeHtml(restaurantName || 'Restaurant')}</h1><p class="eyebrow">Food &amp; beverage receipt</p></div></div>
+        <span class="status">${bill.status === 'paid' ? 'Paid' : 'Unpaid'}</span>
+      </header>
+      <section class="content">
+        <div class="meta">
+          <div class="meta-card"><span class="label">Table</span><span class="value">${escapeHtml(bill.tableNumber)}</span></div>
+          <div class="meta-card"><span class="label">Bill number</span><span class="value">#${escapeHtml(String(bill._id).slice(-6).toUpperCase())}</span></div>
+          <div class="meta-card"><span class="label">Date &amp; time</span><span class="value">${escapeHtml(issued)}</span></div>
+        </div>
+        <table><thead><tr><th>Item</th><th>Amount</th></tr></thead><tbody>${items}</tbody></table>
+        <div class="totals"><table>
         <tr><td>Subtotal</td><td>${escapeHtml(money(bill.subtotal, currency))}</td></tr>
         ${bill.discount > 0 ? `<tr><td>Discount</td><td>-${escapeHtml(money(bill.discount, currency))}</td></tr>` : ''}
         <tr><td>Tax (${escapeHtml(bill.taxPercent)}%)</td><td>${escapeHtml(money(bill.tax, currency))}</td></tr>
-        <tr class="total"><td>Total</td><td>${escapeHtml(money(bill.total, currency))}</td></tr>
-      </table></div><footer>Thank you for dining with us.</footer>
+        <tr class="grand"><td>Total</td><td>${escapeHtml(money(bill.total, currency))}</td></tr>
+        ${bill.status === 'paid' && bill.paymentMethod ? `<tr><td>Payment</td><td>${escapeHtml(bill.paymentMethod)}</td></tr>` : ''}
+      </table></div>
+      </section>
+      <footer><strong>Thank you!</strong><span>We hope to see you again soon.</span></footer>
     </main><script>window.onload=()=>window.print()</script></body></html>`);
   win.document.close();
 }
