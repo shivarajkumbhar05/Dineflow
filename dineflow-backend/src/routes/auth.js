@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
-const { Restaurant, User, WaiterShift } = require('../models');
+const { Restaurant, User, WaiterShift, StaffSchedule } = require('../models');
 const { sign } = require('../utils/jwt');
 const { authenticate, authorize } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimit');
@@ -13,6 +13,11 @@ const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replac
 const emailOk = (e) => typeof e === 'string' && /^\S+@\S+\.\S+$/.test(e);
 const publicUser = (u) => ({ id: u._id, name: u.name, email: u.email, role: u.role, restaurant: u.restaurant });
 const staffRoles = ['manager', 'waiter', 'kitchen', 'cashier'];
+const scheduleDateOk = (value) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return false;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) && date.toISOString() === value;
+};
 
 async function findManagedStaff(req, id) {
   if (!mongoose.Types.ObjectId.isValid(id)) throw new ApiError(404, 'Staff member not found');
@@ -96,6 +101,65 @@ router.get('/staff/:id/shifts', authenticate, authorize('owner', 'manager'), asy
     .sort('-checkedInAt')
     .limit(50)
     .select('checkedInAt checkedOutAt'));
+}));
+
+router.get('/schedules', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const schedules = await StaffSchedule.find({ restaurant: req.tenantId, endsAt: { $gte: new Date() } })
+    .sort('startsAt')
+    .limit(100)
+    .populate('staff', 'name role isActive')
+    .select('staff startsAt endsAt note');
+  res.json(schedules);
+}));
+
+router.get('/staff/:id/schedules', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  res.json(await StaffSchedule.find({ restaurant: req.tenantId, staff: staff._id, endsAt: { $gte: new Date() } })
+    .sort('startsAt')
+    .limit(100)
+    .select('startsAt endsAt note'));
+}));
+
+router.post('/staff/:id/schedules', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  const { startsAt, endsAt, note = '' } = req.body || {};
+  if (!staff.isActive) throw new ApiError(400, 'Cannot schedule an inactive staff member');
+  if (!scheduleDateOk(startsAt) || !scheduleDateOk(endsAt)) throw new ApiError(400, 'Start and end must be valid UTC ISO date-times');
+
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (start <= new Date() || end <= start || end - start > 24 * 60 * 60 * 1000)
+    throw new ApiError(400, 'Schedule must start in the future and last no more than 24 hours');
+  if (typeof note !== 'string' || note.trim().length > 200) throw new ApiError(400, 'Note must be 200 characters or fewer');
+  const overlap = await StaffSchedule.exists({
+    restaurant: req.tenantId,
+    staff: staff._id,
+    startsAt: { $lt: end },
+    endsAt: { $gt: start },
+  });
+  if (overlap) throw new ApiError(409, 'This staff member already has a shift during that time');
+
+  const schedule = await StaffSchedule.create({
+    restaurant: req.tenantId,
+    staff: staff._id,
+    createdBy: req.user._id,
+    startsAt: start,
+    endsAt: end,
+    note: note.trim(),
+  });
+  res.status(201).json({ _id: schedule._id, startsAt: schedule.startsAt, endsAt: schedule.endsAt, note: schedule.note });
+}));
+
+router.delete('/staff/:id/schedules/:scheduleId', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const staff = await findManagedStaff(req, req.params.id);
+  if (!mongoose.Types.ObjectId.isValid(req.params.scheduleId)) throw new ApiError(404, 'Schedule not found');
+  const schedule = await StaffSchedule.findOneAndDelete({
+    _id: req.params.scheduleId,
+    restaurant: req.tenantId,
+    staff: staff._id,
+  });
+  if (!schedule) throw new ApiError(404, 'Schedule not found');
+  res.json({ ok: true });
 }));
 
 router.patch('/staff/:id', authenticate, authorize('owner', 'manager'), asyncHandler(async (req, res) => {

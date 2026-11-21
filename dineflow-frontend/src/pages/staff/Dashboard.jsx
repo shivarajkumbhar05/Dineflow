@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, CircleDollarSign, ConciergeBell, Armchair } from 'lucide-react';
+import { CalendarDays, ChefHat, CircleDollarSign, ConciergeBell, Armchair } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync, useLive, useOrders, useTick } from '../../hooks';
 import { api } from '../../lib/api';
@@ -66,6 +66,7 @@ export default function Dashboard() {
   const todayIncome = useAsync(() => api(reportUrl('day')));
   const tables = useAsync(() => api('/api/tables'));
   const calls = useAsync(() => api('/api/waiter/calls'));
+  const schedules = useAsync(() => api('/api/auth/schedules'));
   useLive(socket, {
     'billing:updated': () => { bills.reload(); report.reload(); todayIncome.reload(); }, 'table:updated': () => tables.reload(),
     'waiter:call': () => calls.reload(), 'waiter:call:updated': () => calls.reload(),
@@ -150,6 +151,30 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      <Card>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-saffron" /><h2 className="font-display text-xl font-bold">Upcoming staff shifts</h2></div>
+          <Link to="/app/team" className="text-sm font-bold text-saffron">Manage team schedule</Link>
+        </div>
+        {schedules.error ? (
+          <p role="alert" className="text-sm text-chili">Could not load staff schedules: {schedules.error}</p>
+        ) : schedules.loading ? (
+          <p className="text-sm text-warm-dim">Loading staff schedules…</p>
+        ) : !schedules.data || schedules.data.length === 0 ? (
+          <p className="text-sm text-warm-dim">No upcoming shifts scheduled.</p>
+        ) : (
+          <ul className="divide-y divide-plum-line/60">
+            {(schedules.data || []).slice(0, 8).map((shift) => (
+              <li key={shift._id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
+                <span className="min-w-0 flex-1 truncate font-semibold">{shift.staff?.name || 'Inactive staff member'}</span>
+                <span className="text-sm text-warm-dim">{new Date(shift.startsAt).toLocaleString()} – {new Date(shift.endsAt).toLocaleTimeString()}</span>
+                {shift.note && <span className="w-full text-xs text-warm-faint">{shift.note}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card>
         <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold">Latest orders</h2><Link to="/app/kitchen" className="text-sm font-bold text-saffron">Open kitchen board</Link></div>

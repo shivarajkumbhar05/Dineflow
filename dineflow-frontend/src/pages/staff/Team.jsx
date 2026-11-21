@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Pencil, Plus, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../hooks';
@@ -9,11 +9,25 @@ import { Button, Card, Input, Modal, PageLoader, Pill, Select } from '../../comp
 const ROLES = { manager: 'Manager', waiter: 'Waiter', kitchen: 'Kitchen', cashier: 'Cashier' };
 const BLURB = { owner: 'Full access', manager: 'Everything except creating managers', waiter: 'Order and guest-request alerts', kitchen: 'Kitchen board', cashier: 'Tables and billing' };
 
+function localDateTime(date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function defaultSchedule() {
+  const startsAt = new Date();
+  startsAt.setMinutes(0, 0, 0);
+  startsAt.setHours(startsAt.getHours() + 1);
+  const endsAt = new Date(startsAt);
+  endsAt.setHours(endsAt.getHours() + 4);
+  return { startsAt: localDateTime(startsAt), endsAt: localDateTime(endsAt), note: '' };
+}
+
 export default function Team() {
   const { user } = useAuth();
   const { data, loading, reload } = useAsync(() => api('/api/auth/staff'));
   const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [editing, setEditing] = useState(null);
   const [shiftsOpen, setShiftsOpen] = useState(false); const [shiftsLoading, setShiftsLoading] = useState(false); const [shifts, setShifts] = useState([]); const [selectedWaiter, setSelectedWaiter] = useState('');
+  const [scheduleOpen, setScheduleOpen] = useState(false); const [scheduleBusy, setScheduleBusy] = useState(false); const [schedulesLoading, setSchedulesLoading] = useState(false); const [schedules, setSchedules] = useState([]); const [selectedStaff, setSelectedStaff] = useState(null); const [scheduleForm, setScheduleForm] = useState(defaultSchedule);
   const [f, setF] = useState({ name: '', email: '', password: '', role: 'waiter' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const roles = user.role === 'owner' ? Object.keys(ROLES) : Object.keys(ROLES).filter((r) => r !== 'manager');
@@ -58,6 +72,42 @@ export default function Team() {
     catch (x) { toast.error(x.message); }
     finally { setShiftsLoading(false); }
   };
+  const viewSchedules = async (member) => {
+    setSelectedStaff(member);
+    setSchedules([]);
+    setScheduleForm(defaultSchedule());
+    setScheduleOpen(true);
+    setSchedulesLoading(true);
+    try { setSchedules(await api(`/api/auth/staff/${member._id}/schedules`)); }
+    catch (x) { toast.error(x.message); }
+    finally { setSchedulesLoading(false); }
+  };
+  const saveSchedule = async (e) => {
+    e.preventDefault();
+    setScheduleBusy(true);
+    try {
+      await api(`/api/auth/staff/${selectedStaff._id}/schedules`, {
+        method: 'POST',
+        body: {
+          startsAt: new Date(scheduleForm.startsAt).toISOString(),
+          endsAt: new Date(scheduleForm.endsAt).toISOString(),
+          note: scheduleForm.note,
+        },
+      });
+      toast.success(`${selectedStaff.name}'s shift was scheduled`);
+      setSchedules(await api(`/api/auth/staff/${selectedStaff._id}/schedules`));
+      setScheduleForm(defaultSchedule());
+    } catch (x) { toast.error(x.message); }
+    finally { setScheduleBusy(false); }
+  };
+  const cancelSchedule = async (schedule) => {
+    if (!window.confirm(`Cancel ${selectedStaff.name}'s shift on ${new Date(schedule.startsAt).toLocaleString()}?`)) return;
+    try {
+      await api(`/api/auth/staff/${selectedStaff._id}/schedules/${schedule._id}`, { method: 'DELETE' });
+      setSchedules((current) => current.filter((item) => item._id !== schedule._id));
+      toast.success('Shift cancelled');
+    } catch (x) { toast.error(x.message); }
+  };
   if (loading && !data) return <PageLoader />;
   return (
     <div className="space-y-6">
@@ -74,6 +124,7 @@ export default function Team() {
             {m.role !== 'owner' && String(m._id) !== String(user.id) && !(user.role === 'manager' && m.role === 'manager') && (
               <div className="flex w-full gap-2 sm:w-auto">
                 {m.role === 'waiter' && <Button variant="soft" size="sm" onClick={() => viewShifts(m)}><Clock className="h-4 w-4" />Check-ins</Button>}
+                <Button variant="soft" size="sm" onClick={() => viewSchedules(m)}><CalendarDays className="h-4 w-4" />Schedule</Button>
                 <Button variant="soft" size="sm" onClick={() => edit(m)}><Pencil className="h-4 w-4" />Edit</Button>
                 <Button variant={m.isActive ? 'danger' : 'success'} size="sm" onClick={() => setActive(m)}>{m.isActive ? 'Deactivate' : 'Reactivate'}</Button>
               </div>
@@ -97,6 +148,28 @@ export default function Team() {
               <li key={shift._id} className="rounded-xl bg-ink/70 p-3 text-sm ring-1 ring-plum-line">
                 <p><span className="font-semibold text-warm-dim">Check-in:</span> {new Date(shift.checkedInAt).toLocaleString()}</p>
                 <p className="mt-1"><span className="font-semibold text-warm-dim">Check-out:</span> {shift.checkedOutAt ? new Date(shift.checkedOutAt).toLocaleString() : 'Currently checked in'}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+      <Modal open={scheduleOpen} onClose={() => setScheduleOpen(false)} title={`${selectedStaff?.name || 'Staff'} schedule`} wide>
+        <form onSubmit={saveSchedule} className="grid gap-3 sm:grid-cols-2">
+          <Input label="Starts" type="datetime-local" required min={localDateTime(new Date())} value={scheduleForm.startsAt} onChange={(e) => setScheduleForm({ ...scheduleForm, startsAt: e.target.value })} />
+          <Input label="Ends" type="datetime-local" required min={scheduleForm.startsAt} value={scheduleForm.endsAt} onChange={(e) => setScheduleForm({ ...scheduleForm, endsAt: e.target.value })} />
+          <Input label="Shift note (optional)" maxLength={200} value={scheduleForm.note} onChange={(e) => setScheduleForm({ ...scheduleForm, note: e.target.value })} />
+          <Button type="submit" className="sm:col-span-2" loading={scheduleBusy}><Plus className="h-4 w-4" />Add shift</Button>
+        </form>
+        <h3 className="mt-6 font-display text-lg font-bold">Upcoming shifts</h3>
+        {schedulesLoading ? <PageLoader /> : schedules.length === 0 ? <p className="mt-3 text-sm text-warm-dim">No upcoming shifts scheduled.</p> : (
+          <ul className="mt-3 space-y-2">
+            {schedules.map((schedule) => (
+              <li key={schedule._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ink/70 p-3 text-sm ring-1 ring-plum-line">
+                <div>
+                  <p className="font-semibold">{new Date(schedule.startsAt).toLocaleString()} – {new Date(schedule.endsAt).toLocaleTimeString()}</p>
+                  {schedule.note && <p className="mt-1 text-warm-dim">{schedule.note}</p>}
+                </div>
+                <Button type="button" variant="danger" size="sm" aria-label={`Cancel shift starting ${new Date(schedule.startsAt).toLocaleString()}`} onClick={() => cancelSchedule(schedule)}><Trash2 className="h-4 w-4" />Cancel</Button>
               </li>
             ))}
           </ul>
