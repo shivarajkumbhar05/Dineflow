@@ -1,7 +1,7 @@
 # DineFlow Backend (Node.js + Express + Socket.IO + MongoDB Atlas)
 
 Multi-tenant backend for the DineFlow Restaurant & Hotel Management SaaS:
-QR ordering, kitchen & waiter real-time, billing, Razorpay payments, and MongoDB GridFS image storage.
+QR ordering, kitchen & waiter real-time, billing, Razorpay payments, and Cloudinary image storage.
 
 > **Important hosting note:** Socket.IO needs a long-running server. Vercel serverless functions
 > cannot hold WebSocket connections. So: **frontend -> Vercel**, **this backend -> Render / Railway / Fly.io / a VPS**.
@@ -46,11 +46,12 @@ Generate a JWT secret:
 | MONGO_MAX_POOL_SIZE / MONGO_MIN_POOL_SIZE | no | connection pool, default 20 / 2 |
 | JWT_SECRET | yes | >= 32 chars in production (**secret**) |
 | JWT_EXPIRES_IN | no | default `7d` |
+| CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET | for image uploads | Cloudinary account credentials; keep the API secret private |
 | RAZORPAY_KEY_ID / KEY_SECRET | for payments | use `rzp_test_...` keys for sandbox |
 | RAZORPAY_WEBHOOK_SECRET | for webhook | set same value in Razorpay dashboard |
 
 Never put any of these in frontend code. Only `RAZORPAY_KEY_ID` (public key) is returned to the browser by the API.
-Uploaded images are stored in MongoDB GridFS (`uploads.files` and `uploads.chunks`); each image is limited to 5 MB. Previously uploaded Cloudinary images are not copied automatically and must be uploaded again to move them into MongoDB.
+New image uploads are stored in Cloudinary; each image is limited to 5 MB. The upload response includes an auto-optimized URL, an auto-cropped square URL, and the Cloudinary public ID. Existing MongoDB GridFS image URLs remain available.
 
 ## 4. API overview
 
