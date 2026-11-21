@@ -6,12 +6,16 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import './index.css';
 
+const savedTheme = localStorage.getItem('dineflow-theme') === 'light' ? 'light' : 'dark';
+document.documentElement.dataset.theme = savedTheme;
+document.documentElement.style.colorScheme = savedTheme;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <App />
-        <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: '#2F1650', border: '1px solid #43266B', color: '#FFF4E4' } }} />
+        <Toaster position="top-center" theme="system" />
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

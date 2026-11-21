@@ -17,10 +17,28 @@ router.get('/', authorize('owner', 'manager', 'cashier'), asyncHandler(async (re
 
 router.post('/', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const { number, seats } = req.body;
-  if (!number) throw new ApiError(400, 'Table number required');
-  const table = await Table.create({ restaurant: req.tenantId, number: String(number), seats, qrToken: crypto.randomBytes(12).toString('hex') });
+  const tableNumber = String(number || '').trim();
+  const capacity = Number(seats);
+  if (!tableNumber) throw new ApiError(400, 'Table number required');
+  if (!Number.isSafeInteger(capacity) || capacity < 1) throw new ApiError(400, 'Seats must be a positive whole number');
+  const table = await Table.create({ restaurant: req.tenantId, number: tableNumber, seats: capacity, qrToken: crypto.randomBytes(12).toString('hex') });
   const restaurant = await Restaurant.findById(req.tenantId).select('slug');
   res.status(201).json({ ...table.toObject(), qrUrl: qrLink(restaurant.slug, table.qrToken) });
+}));
+
+router.patch('/:id', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const number = String(req.body.number || '').trim();
+  const seats = Number(req.body.seats);
+  if (!number) throw new ApiError(400, 'Table number required');
+  if (!Number.isSafeInteger(seats) || seats < 1) throw new ApiError(400, 'Seats must be a positive whole number');
+  const table = await Table.findOneAndUpdate(
+    { _id: req.params.id, restaurant: req.tenantId },
+    { number, seats },
+    { new: true, runValidators: true }
+  );
+  if (!table) throw new ApiError(404, 'Table not found');
+  emitToRestaurant(req.tenantId, 'table:updated', { tableId: table._id, status: table.status, number: table.number, seats: table.seats });
+  res.json(table);
 }));
 
 router.patch('/:id/status', authorize('owner', 'manager'), asyncHandler(async (req, res) => {

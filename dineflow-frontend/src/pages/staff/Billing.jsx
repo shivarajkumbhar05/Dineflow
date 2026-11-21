@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Banknote, CreditCard, QrCode, Receipt, Smartphone } from 'lucide-react';
+import { Banknote, CreditCard, Printer, QrCode, Receipt, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync, useLive } from '../../hooks';
@@ -7,6 +7,44 @@ import { api } from '../../lib/api';
 import { payWithRazorpay } from '../../lib/razorpay';
 import { Button, Empty, PageLoader, Pill } from '../../components/ui';
 import { cx, money, timeAgo } from '../../lib/format';
+
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
+function printBill(bill, restaurantName, currency) {
+  const win = window.open('', '_blank', 'width=520,height=720');
+  if (!win) return toast.error('Allow pop-ups to print or save this bill.');
+  const items = bill.items.map((item) => `
+    <tr><td>${escapeHtml(item.qty)} × ${escapeHtml(item.name)}</td><td>${escapeHtml(money(item.price * item.qty, currency))}</td></tr>
+  `).join('');
+  const issued = new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bill ${escapeHtml(bill._id)}</title>
+    <style>
+      *{box-sizing:border-box}body{margin:0;padding:32px;color:#211b26;font:14px/1.5 system-ui,sans-serif}
+      main{max-width:420px;margin:auto}h1{margin:0;font-size:24px}p{margin:4px 0;color:#625b66}
+      .meta{margin:20px 0;padding:12px 0;border-block:1px dashed #aaa}
+      table{width:100%;border-collapse:collapse}td{padding:7px 0;vertical-align:top}td:last-child{text-align:right;white-space:nowrap}
+      .totals{margin-top:14px;padding-top:12px;border-top:1px dashed #aaa}.total{font-size:20px;font-weight:800}
+      footer{margin-top:24px;text-align:center;color:#625b66;font-size:12px}
+      @media print{body{padding:0}main{max-width:none}}
+    </style></head><body><main>
+      <h1>${escapeHtml(restaurantName || 'Restaurant')}</h1>
+      <p>Payment receipt</p>
+      <div class="meta"><div><strong>Table:</strong> ${escapeHtml(bill.tableNumber)}</div>
+      <div><strong>Bill:</strong> ${escapeHtml(String(bill._id).slice(-6).toUpperCase())}</div>
+      <div><strong>Date:</strong> ${escapeHtml(issued)}</div>
+      <div><strong>Status:</strong> ${bill.status === 'paid' ? `Paid${bill.paymentMethod ? ` · ${escapeHtml(bill.paymentMethod)}` : ''}` : 'Unpaid'}</div></div>
+      <table><tbody>${items}</tbody></table>
+      <div class="totals"><table>
+        <tr><td>Subtotal</td><td>${escapeHtml(money(bill.subtotal, currency))}</td></tr>
+        ${bill.discount > 0 ? `<tr><td>Discount</td><td>-${escapeHtml(money(bill.discount, currency))}</td></tr>` : ''}
+        <tr><td>Tax (${escapeHtml(bill.taxPercent)}%)</td><td>${escapeHtml(money(bill.tax, currency))}</td></tr>
+        <tr class="total"><td>Total</td><td>${escapeHtml(money(bill.total, currency))}</td></tr>
+      </table></div><footer>Thank you for dining with us.</footer>
+    </main><script>window.onload=()=>window.print()</script></body></html>`);
+  win.document.close();
+}
 
 function BillTicket({ b, cur, onChange, restaurantName, role }) {
   const [busy, setBusy] = useState('');
@@ -40,7 +78,10 @@ function BillTicket({ b, cur, onChange, restaurantName, role }) {
     <li className="ticket shadow-lift" style={{ '--notch': '60px' }}>
       <div className="flex items-center justify-between px-5 pb-4 pt-5">
         <div><p className="font-display text-2xl font-extrabold">Table {b.tableNumber}</p><p className="text-xs text-warm-faint">{timeAgo(b.createdAt)}</p></div>
-        {paid ? <Pill tone="good">Paid{b.paymentMethod ? ` by ${b.paymentMethod}` : ''}</Pill> : <Pill tone="warn">Unpaid</Pill>}
+        <div className="flex items-center gap-2">
+          {paid ? <Pill tone="good">Paid{b.paymentMethod ? ` by ${b.paymentMethod}` : ''}</Pill> : <Pill tone="warn">Unpaid</Pill>}
+          <Button variant="ghost" size="sm" aria-label="Print or save bill" title="Print or save as PDF" onClick={() => printBill(b, restaurantName, cur)}><Printer className="h-4 w-4" /></Button>
+        </div>
       </div>
       <div className="tear mx-4" />
       <ul className="space-y-1.5 px-5 py-4 text-sm">
@@ -81,7 +122,7 @@ export default function Billing() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Billing</h1><p className="mt-1 text-warm-dim">Bills are generated automatically when guests order. Cashiers confirm cash received here.</p></div>
+        <div><h1 className="font-display text-3xl font-extrabold sm:text-4xl">Billing</h1><p className="mt-1 text-warm-dim">Bills are generated automatically when guests order. Print a receipt or choose Save as PDF in the print dialog.</p></div>
         <p className="num text-right"><span className="block text-sm text-warm-dim">Waiting to be collected</span><span className="font-display text-3xl font-extrabold text-saffron">{money(due, restaurant?.currency)}</span></p>
       </div>
       <div className="flex gap-2">

@@ -13,6 +13,38 @@ router.get('/', authorize('owner', 'manager', 'cashier'), asyncHandler(async (re
   res.json(await Bill.find(filter).sort('-createdAt').limit(200));
 }));
 
+router.get('/summary', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
+  const { period, from: fromValue, to: toValue, timeZone } = req.query;
+  if (!['day', 'week', 'year'].includes(period) || typeof fromValue !== 'string' || typeof toValue !== 'string' || typeof timeZone !== 'string') {
+    throw new ApiError(400, 'A valid reporting period, date range and time zone are required');
+  }
+  const from = new Date(fromValue);
+  const to = new Date(toValue);
+  const maxRange = period === 'day' ? 25 * 60 * 60 * 1000 : period === 'week' ? 8 * 24 * 60 * 60 * 1000 : 367 * 24 * 60 * 60 * 1000;
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from >= to || to - from > maxRange) {
+    throw new ApiError(400, 'The reporting date range is invalid');
+  }
+  try { new Intl.DateTimeFormat('en', { timeZone }); }
+  catch { throw new ApiError(400, 'The reporting time zone is invalid'); }
+
+  const format = period === 'day' ? '%Y-%m-%d-%H' : period === 'week' ? '%Y-%m-%d' : '%Y-%m';
+  const buckets = await Bill.aggregate([
+    { $match: { restaurant: req.tenantId, status: 'paid', paidAt: { $gte: from, $lt: to } } },
+    { $group: {
+      _id: { $dateToString: { format, date: '$paidAt', timezone: timeZone } },
+      total: { $sum: '$total' },
+      count: { $sum: 1 },
+    } },
+    { $sort: { _id: 1 } },
+  ]);
+  res.json({
+    period,
+    total: buckets.reduce((sum, bucket) => sum + bucket.total, 0),
+    count: buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+    buckets: buckets.map(({ _id, total, count }) => ({ key: _id, total, count })),
+  });
+}));
+
 // Generate a bill from all un-billed, non-cancelled orders of a table
 router.post('/table/:tableId', authorize('owner', 'manager'), asyncHandler(async (req, res) => {
   const table = await Table.findOne({ _id: req.params.tableId, restaurant: req.tenantId });

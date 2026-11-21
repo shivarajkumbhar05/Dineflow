@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { BellRing, ChefHat, CreditCard, LayoutDashboard, LogOut, QrCode, Settings as Cog, Soup, Users, Wifi, WifiOff, ConciergeBell } from 'lucide-react';
+import { BellRing, ChefHat, CreditCard, LayoutDashboard, LogOut, Moon, QrCode, Settings as Cog, Soup, Sun, Users, Wifi, WifiOff, ConciergeBell } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +23,9 @@ export default function StaffLayout() {
   const { user, restaurant, socket, logout } = useAuth();
   const nav = useNavigate();
   const [online, setOnline] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('dineflow-theme') === 'light' ? 'light' : 'dark');
   const items = NAV.filter((n) => n.roles.includes(user.role));
+  const toggleTheme = () => setTheme((current) => current === 'dark' ? 'light' : 'dark');
   const signOut = async () => {
     try {
       await api('/api/auth/logout', { method: 'POST' });
@@ -31,6 +33,12 @@ export default function StaffLayout() {
       nav('/login');
     } catch (e) { toast.error(`Could not record check-out: ${e.message}`); }
   };
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem('dineflow-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!socket) return undefined;
@@ -62,7 +70,7 @@ export default function StaffLayout() {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-plum-line/70 bg-ink/60 p-5 backdrop-blur lg:flex">
-        <Logo />
+        <div className="flex items-center justify-between gap-2"><Logo /><button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className="rounded-lg p-2 text-warm-dim hover:bg-white/10 hover:text-warm">{theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button></div>
         <p className="mt-5 truncate font-display text-sm font-bold text-warm-dim">{restaurant?.name}</p>
         <nav className="mt-4 flex flex-1 flex-col gap-1">
           {items.map(({ to, label, icon: Icon, end }) => (
@@ -87,6 +95,7 @@ export default function StaffLayout() {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-plum-line/70 bg-ink/80 px-4 py-3 backdrop-blur lg:hidden">
           <Logo className="text-lg" />
           <div className="flex items-center gap-3">
+            <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className="rounded-lg p-1.5 text-warm-dim"><Sun className={cx('h-4 w-4', theme === 'light' && 'hidden')} /><Moon className={cx('h-4 w-4', theme === 'dark' && 'hidden')} /></button>
             <span className={cx('inline-flex items-center gap-1 text-xs font-semibold', online ? 'text-pista' : 'text-chili')}><BellRing className="h-3.5 w-3.5" />{online ? 'Live' : 'Offline'}</span>
             <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim"><LogOut className="h-5 w-5" /></button>
           </div>

@@ -2,7 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  --color-ink: 23 10 40;
+  --color-ink-surface: 23 10 40;
+  --color-plum: 36 16 57;
+  --color-plum-raised: 47 22 80;
+  --color-plum-line: 67 38 107;
+  --color-saffron: 255 176 32;
+  --color-saffron-deep: 229 142 0;
+  --color-chili: 255 90 78;
+  --color-pista: 61 220 151;
+  --color-sky: 92 200 255;
+  --color-warm: 255 244 228;
+  --color-warm-dim: 187 169 209;
+  --color-warm-faint: 134 112 166;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-ink-surface: 248 246 251;
+  --color-plum: 255 255 255;
+  --color-plum-raised: 244 240 249;
+  --color-plum-line: 222 214 233;
+  --color-saffron: 190 109 0;
+  --color-saffron-deep: 158 83 0;
+  --color-chili: 189 54 46;
+  --color-pista: 20 123 82;
+  --color-sky: 26 111 158;
+  --color-warm: 39 28 51;
+  --color-warm-dim: 91 77 105;
+  --color-warm-faint: 122 107 139;
+}
 html { -webkit-tap-highlight-color: transparent; }
 body {
   @apply bg-ink font-sans text-warm antialiased;
@@ -21,15 +51,32 @@ h1, h2, h3, .font-display { font-family: 'Bricolage Grotesque', ui-sans-serif, s
 /* The one signature device: a perforated order ticket (used for orders, bills, hero). */
 .ticket {
   --r: 10px;
-  background: #2F1650;
+  background: rgb(var(--color-plum-raised));
   -webkit-mask:
     radial-gradient(circle var(--r) at 0 var(--notch, 64px), #0000 97%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--r) at 100% var(--notch, 64px), #0000 97%, #000) right / 51% 100% no-repeat;
-          mask:
+  mask:
     radial-gradient(circle var(--r) at 0 var(--notch, 64px), #0000 97%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--r) at 100% var(--notch, 64px), #0000 97%, #000) right / 51% 100% no-repeat;
 }
-.tear { border-top: 2px dashed #43266B; }
+.tear { border-top: 2px dashed rgb(var(--color-plum-line)); }
+:root[data-theme='light'] body { background-image: none; }
+:root[data-theme='light'] .bg-ink { background-color: rgb(var(--color-ink-surface)); }
+:root[data-theme='light'] .bg-ink\/60 { background-color: rgb(var(--color-ink-surface) / .6); }
+:root[data-theme='light'] .bg-ink\/70 { background-color: rgb(var(--color-ink-surface) / .7); }
+:root[data-theme='light'] .bg-ink\/80 { background-color: rgb(var(--color-ink-surface) / .8); }
+:root[data-theme='light'] .bg-ink\/90 { background-color: rgb(var(--color-ink-surface) / .9); }
+:root[data-theme='light'] .bg-ink\/95 { background-color: rgb(var(--color-ink-surface) / .95); }
+:root[data-theme='light'] .bg-white\/5,
+:root[data-theme='light'] .bg-white\/8,
+:root[data-theme='light'] .bg-white\/10,
+:root[data-theme='light'] .bg-white\/15 { background-color: rgb(var(--color-plum-raised)); }
+:root[data-theme='light'] .border-white\/10 { border-color: rgb(var(--color-plum-line)); }
+:root[data-theme='light'] [data-sonner-toast] {
+  --normal-bg: rgb(var(--color-plum));
+  --normal-border: rgb(var(--color-plum-line));
+  --normal-text: rgb(var(--color-warm));
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

@@ -4,13 +4,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#170A28',      // aubergine base
-        plum: { DEFAULT: '#241039', raised: '#2F1650', line: '#43266B' },
-        saffron: { DEFAULT: '#FFB020', deep: '#E58E00' },
-        chili: '#FF5A4E',
-        pista: '#3DDC97',
-        sky: '#5CC8FF',
-        warm: { DEFAULT: '#FFF4E4', dim: '#BBA9D1', faint: '#8670A6' },
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
+        plum: {
+          DEFAULT: 'rgb(var(--color-plum) / <alpha-value>)',
+          raised: 'rgb(var(--color-plum-raised) / <alpha-value>)',
+          line: 'rgb(var(--color-plum-line) / <alpha-value>)',
+        },
+        saffron: {
+          DEFAULT: 'rgb(var(--color-saffron) / <alpha-value>)',
+          deep: 'rgb(var(--color-saffron-deep) / <alpha-value>)',
+        },
+        chili: 'rgb(var(--color-chili) / <alpha-value>)',
+        pista: 'rgb(var(--color-pista) / <alpha-value>)',
+        sky: 'rgb(var(--color-sky) / <alpha-value>)',
+        warm: {
+          DEFAULT: 'rgb(var(--color-warm) / <alpha-value>)',
+          dim: 'rgb(var(--color-warm-dim) / <alpha-value>)',
+          faint: 'rgb(var(--color-warm-faint) / <alpha-value>)',
+        },
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
