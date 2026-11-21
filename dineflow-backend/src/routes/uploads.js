@@ -27,13 +27,28 @@ const getBucket = () => {
   return new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: BUCKET_NAME });
 };
 
+const uploadToGridFS = (file, metadata) => new Promise((resolve, reject) => {
+  const bucket = getBucket();
+  const stream = bucket.openUploadStream(`dineflow-${crypto.randomUUID()}`, {
+    metadata: { ...metadata, contentType: file.mimetype },
+  });
+  stream.on('error', reject);
+  stream.on('finish', () => resolve(stream.id));
+  stream.end(file.buffer);
+});
+
 // POST /api/uploads/:kind   (multipart field name: "file")
 router.post('/:kind', authenticate, authorize('owner', 'manager'), uploadLimiter, upload.single('file'), asyncHandler(async (req, res) => {
   if (!KINDS.includes(req.params.kind)) throw new ApiError(400, 'Invalid upload type');
   if (!req.file) throw new ApiError(400, 'File is required');
 
   if (!env.cloudinary.cloudName || !env.cloudinary.apiKey || !env.cloudinary.apiSecret) {
-    throw new ApiError(503, 'Image storage is not configured');
+    const fileId = await uploadToGridFS(req.file, {
+      restaurant: String(req.tenantId),
+      kind: req.params.kind,
+    });
+    const url = `/api/uploads/${fileId}`;
+    return res.status(201).json({ url, optimizedUrl: url, autoCropUrl: url, publicId: String(fileId) });
   }
 
   cloudinary.config({
@@ -79,7 +94,7 @@ router.get('/:fileId', asyncHandler(async (req, res, next) => {
   if (!file) throw new ApiError(404, 'Image not found');
 
   res.set({
-    'Content-Type': file.contentType || 'application/octet-stream',
+    'Content-Type': file.contentType || file.metadata?.contentType || 'application/octet-stream',
     'Content-Length': file.length,
     'Cache-Control': 'public, max-age=31536000, immutable',
     'Cross-Origin-Resource-Policy': 'cross-origin',

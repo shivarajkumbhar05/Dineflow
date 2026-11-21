@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, QrCode, Search, ShoppingBag, Soup, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { pub } from '../../lib/api';
-import { addOrderCode, getOrderCodes, getTableToken, saveTableToken } from '../../lib/guest';
+import { getTableToken, saveTableToken } from '../../lib/guest';
 import GuestActions from '../../components/GuestActions';
 import { Button, Empty, Input, Modal, PageLoader } from '../../components/ui';
 import { VegMark } from '../staff/MenuManager';
@@ -24,10 +24,17 @@ export default function Menu() {
   const [cart, setCart] = useState({}); // itemId -> { qty, notes }
   const [open, setOpen] = useState(false); const [name, setName] = useState(''); const [busy, setBusy] = useState(false);
   const [q, setQ] = useState(''); const [vegOnly, setVegOnly] = useState(false); const [cat, setCat] = useState('');
+  const [welcome, setWelcome] = useState(false);
 
   const urlToken = sp.get('t');
   useEffect(() => { if (urlToken) saveTableToken(slug, urlToken); }, [slug, urlToken]);
   const token = urlToken || getTableToken(slug);
+  useEffect(() => {
+    if (!token) return undefined;
+    setWelcome(true);
+    const timer = setTimeout(() => setWelcome(false), 2200);
+    return () => clearTimeout(timer);
+  }, [slug, token]);
 
   useEffect(() => { pub(slug).menu().then((d) => { setData(d); setCat(d.categories[0]?._id || ''); }).catch((e) => setError(e.message)); }, [slug]);
 
@@ -52,13 +59,11 @@ export default function Menu() {
   const count = lines.reduce((s, l) => s + l.qty, 0); const total = lines.reduce((s, l) => s + l.qty * l.item.price, 0);
   const add = (id) => setCart((c) => ({ ...c, [id]: { qty: Math.min((c[id]?.qty || 0) + 1, 20), notes: c[id]?.notes || '' } }));
   const sub = (id) => setCart((c) => { const n = { ...c }; if ((n[id]?.qty || 0) <= 1) delete n[id]; else n[id] = { ...n[id], qty: n[id].qty - 1 }; return n; });
-  const lastOrder = getOrderCodes(slug)[0];
-
   const place = async () => {
     setBusy(true);
     try {
       const r = await pub(slug).order({ tableToken: token, customerName: name, items: lines.map((l) => ({ menuItem: l.item._id, qty: l.qty, notes: l.notes })) });
-      addOrderCode(slug, r.trackingCode); setCart({}); setOpen(false);
+      setCart({}); setOpen(false);
       nav(`/r/${slug}/track/${r.trackingCode}`);
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
@@ -66,6 +71,17 @@ export default function Menu() {
 
   return (
     <div className="mx-auto max-w-2xl pb-36">
+      <AnimatePresence>
+        {welcome && token && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-ink/70 px-6 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -16, scale: 0.96 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} className="w-full max-w-sm rounded-3xl bg-plum-raised p-8 text-center shadow-lift ring-1 ring-saffron/40">
+              <p className="text-sm font-bold uppercase tracking-[.2em] text-saffron">Welcome to</p>
+              <h2 className="mt-2 font-display text-3xl font-extrabold">{data?.restaurant.name}</h2>
+              <p className="mt-2 text-warm-dim">We’re glad you’re here.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="relative">
         <div className="h-44 overflow-hidden bg-gradient-to-br from-chili/40 via-plum-raised to-saffron/30">{restaurant.banner && <img src={restaurant.banner} alt="" className="h-full w-full object-cover" />}</div>
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-transparent" />
@@ -77,7 +93,6 @@ export default function Menu() {
 
       <div className="space-y-3 px-5 pt-5">
         {!token ? <p className="rounded-2xl bg-saffron/15 px-4 py-3 text-sm font-semibold text-saffron ring-1 ring-saffron/30">You’re browsing the menu. Scan the QR code on your table to place an order.</p> : <GuestActions slug={slug} token={token} restaurantName={restaurant.name} />}
-        {lastOrder && <Link to={`/r/${slug}/track/${lastOrder}`} className="block rounded-2xl bg-pista/15 px-4 py-3 text-center text-sm font-bold text-pista ring-1 ring-pista/30">Track your last order</Link>}
       </div>
 
       <div className="sticky top-0 z-20 mt-4 space-y-3 bg-ink/90 px-5 py-3 backdrop-blur">

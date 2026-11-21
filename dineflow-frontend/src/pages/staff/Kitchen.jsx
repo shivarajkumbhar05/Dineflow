@@ -31,7 +31,7 @@ function KitchenOrder({ order }) {
 export default function Kitchen() {
   const { socket } = useAuth();
   useTick(20000);
-  const { data, loading, error } = useOrders(socket);
+  const { data, loading, error } = useOrders(socket, '?view=kitchen');
 
   if (loading && !data) return <PageLoader />;
   if (error) return <Empty icon={ChefHat} title="Could not load orders">{error}</Empty>;
@@ -44,7 +44,7 @@ export default function Kitchen() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-extrabold sm:text-4xl">Kitchen orders</h1>
-          <p className="mt-1 text-warm-dim">Order details only. Updates appear automatically.</p>
+          <p className="mt-1 text-warm-dim">New tickets appear automatically and paid tickets leave the board.</p>
         </div>
         <p className="num font-display text-2xl font-extrabold text-saffron">{orders.length}<span className="ml-1.5 text-sm font-semibold text-warm-dim">open</span></p>
       </div>

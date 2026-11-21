@@ -131,7 +131,16 @@ async function markBillPaid(bill, { method, paymentId }) {
     { new: true }
   ).select('number');
   const tableNumber = bill.tableNumber || table?.number;
-  emitToRestaurant(bill.restaurant, 'payment:confirmed', { billId: bill._id, tableId: bill.table, tableNumber, tableStatus, total: bill.total, method });
+  emitToRestaurant(bill.restaurant, 'payment:confirmed', {
+    billId: bill._id,
+    tableId: bill.table,
+    tableNumber,
+    tableStatus,
+    total: bill.total + (bill.tip || 0),
+    tip: bill.tip || 0,
+    orderIds: bill.orders.map(String),
+    method,
+  });
   emitToRestaurant(bill.restaurant, 'table:updated', { tableId: bill.table, status: tableStatus });
   emitToRestaurant(bill.restaurant, 'billing:updated', bill);
   return { bill, tableStatus };

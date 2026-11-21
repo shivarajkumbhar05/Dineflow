@@ -20,7 +20,7 @@ async function createOrder(bill, restaurantId) {
   }
   try {
     return await getClient().orders.create({
-      amount: Math.round(bill.total * 100),
+      amount: Math.round((bill.total + (bill.tip || 0)) * 100),
       currency: 'INR',
       receipt: String(bill._id),
       notes: { billId: String(bill._id), restaurantId: String(restaurantId) },

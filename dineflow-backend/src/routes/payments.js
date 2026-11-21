@@ -18,7 +18,7 @@ router.post('/razorpay/order', authenticate, authorize('owner', 'manager'), asyn
     bill.razorpayOrderId = rzp.id;
     await bill.save();
   }
-  res.json({ keyId: env.razorpay.keyId, razorpayOrderId: bill.razorpayOrderId, amount: Math.round(bill.total * 100), currency: 'INR', billId: bill._id });
+  res.json({ keyId: env.razorpay.keyId, razorpayOrderId: bill.razorpayOrderId, amount: Math.round((bill.total + (bill.tip || 0)) * 100), currency: 'INR', billId: bill._id });
 }));
 
 // Called by the checkout page after payment. Signature is verified server-side - never trust the client.

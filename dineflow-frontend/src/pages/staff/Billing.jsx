@@ -63,7 +63,8 @@ function printBill(bill, restaurantName, currency) {
         <tr><td>Subtotal</td><td>${escapeHtml(money(bill.subtotal, currency))}</td></tr>
         ${bill.discount > 0 ? `<tr><td>Discount</td><td>-${escapeHtml(money(bill.discount, currency))}</td></tr>` : ''}
         <tr><td>Tax (${escapeHtml(bill.taxPercent)}%)</td><td>${escapeHtml(money(bill.tax, currency))}</td></tr>
-        <tr class="grand"><td>Total</td><td>${escapeHtml(money(bill.total, currency))}</td></tr>
+        ${bill.tip > 0 ? `<tr><td>Tip</td><td>${escapeHtml(money(bill.tip, currency))}</td></tr>` : ''}
+        <tr class="grand"><td>Total</td><td>${escapeHtml(money(bill.total + (bill.tip || 0), currency))}</td></tr>
         ${bill.status === 'paid' && bill.paymentMethod ? `<tr><td>Payment</td><td>${escapeHtml(bill.paymentMethod)}</td></tr>` : ''}
       </table></div>
       </section>
@@ -120,7 +121,8 @@ function BillTicket({ b, cur, onChange, restaurantName, role }) {
         <div className="flex justify-between text-warm-dim"><dt>Subtotal</dt><dd>{money(b.subtotal, cur)}</dd></div>
         {b.discount > 0 && <div className="flex justify-between text-pista"><dt>Discount</dt><dd>-{money(b.discount, cur)}</dd></div>}
         <div className="flex justify-between text-warm-dim"><dt>Tax ({b.taxPercent}%)</dt><dd>{money(b.tax, cur)}</dd></div>
-        <div className="flex justify-between pt-2 font-display text-2xl font-extrabold"><dt>Total</dt><dd className="text-saffron">{money(b.total, cur)}</dd></div>
+        {b.tip > 0 && <div className="flex justify-between text-warm-dim"><dt>Tip</dt><dd>{money(b.tip, cur)}</dd></div>}
+        <div className="flex justify-between pt-2 font-display text-2xl font-extrabold"><dt>Total</dt><dd className="text-saffron">{money(b.total + (b.tip || 0), cur)}</dd></div>
       </dl>
       {!paid && role === 'cashier' && (
         <div className="px-5 pb-5">
@@ -147,7 +149,7 @@ export default function Billing() {
   useLive(socket, { 'billing:updated': () => reload() });
   if (loading && !data) return <PageLoader />;
   const list = (data || []).filter((b) => b.status === tab);
-  const due = (data || []).filter((b) => b.status === 'unpaid').reduce((s, b) => s + b.total, 0);
+  const due = (data || []).filter((b) => b.status === 'unpaid').reduce((s, b) => s + b.total + (b.tip || 0), 0);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">

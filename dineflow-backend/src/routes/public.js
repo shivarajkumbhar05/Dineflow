@@ -97,6 +97,8 @@ router.post('/:slug/bill/view', publicOrderLimiter, asyncHandler(async (req, res
     discount: bill.discount,
     taxPercent: bill.taxPercent,
     tax: bill.tax,
+    tip: bill.tip || 0,
+    paymentStarted: Boolean(bill.razorpayOrderId),
     total: bill.total,
     status: bill.status,
     createdAt: bill.createdAt,
@@ -117,12 +119,27 @@ router.post('/:slug/bill/pay', publicOrderLimiter, asyncHandler(async (req, res)
   } else {
     bill = await createTableBill({ restaurantId: req.tenantId, table });
   }
+  const tip = Math.round(Number(req.body.tip || 0) * 100) / 100;
+  if (!Number.isFinite(tip) || tip < 0 || tip > bill.total) {
+    throw new ApiError(400, 'Tip must be between 0 and the bill total');
+  }
+  if (bill.razorpayOrderId && Number(bill.tip || 0) !== tip) {
+    throw new ApiError(409, 'Payment has already started with a different tip');
+  }
   if (!bill.razorpayOrderId) {
+    bill.tip = tip;
     const rzp = await createOrder(bill, req.tenantId);
     bill.razorpayOrderId = rzp.id;
     await bill.save();
   }
-  res.json({ keyId: env.razorpay.keyId, razorpayOrderId: bill.razorpayOrderId, amount: Math.round(bill.total * 100), currency: 'INR', billId: bill._id });
+  res.json({
+    keyId: env.razorpay.keyId,
+    razorpayOrderId: bill.razorpayOrderId,
+    amount: Math.round((bill.total + (bill.tip || 0)) * 100),
+    currency: 'INR',
+    billId: bill._id,
+    tip: bill.tip || 0,
+  });
 }));
 
 module.exports = router;

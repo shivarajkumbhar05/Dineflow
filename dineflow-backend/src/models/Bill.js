@@ -10,6 +10,7 @@ const schema = new mongoose.Schema(
     taxPercent: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
+    tip: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true },
     currency: { type: String },
     status: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },

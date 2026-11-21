@@ -37,9 +37,9 @@ export function ding(freq = 880) {
       const o = ctx.createOscillator(); const g = ctx.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.setValueAtTime(peak, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
-      o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.45);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.7);
+      o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.7);
     }, delay);
-    tone(freq, 0, 0.18); tone(freq * 1.5, 140, 0.12);
+    tone(freq, 0, 0.36); tone(freq * 1.5, 180, 0.24);
   } catch { /* audio is blocked until the first interaction */ }
 }

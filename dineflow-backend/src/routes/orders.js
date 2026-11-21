@@ -12,6 +12,17 @@ router.get('/', authorize('owner', 'manager', 'kitchen'), asyncHandler(async (re
   const filter = { restaurant: req.tenantId };
   if (req.query.status) filter.status = req.query.status;
   if (req.query.table) filter.table = req.query.table;
+  if (req.query.view === 'kitchen') {
+    const orders = await Order.aggregate([
+      { $match: filter },
+      { $lookup: { from: 'bills', localField: 'bill', foreignField: '_id', as: 'billInfo' } },
+      { $match: { $or: [{ billInfo: { $eq: [] } }, { 'billInfo.status': { $ne: 'paid' } }] } },
+      { $sort: { createdAt: -1 } },
+      { $limit: 200 },
+      { $project: { billInfo: 0 } },
+    ]);
+    return res.json(orders);
+  }
   res.json(await Order.find(filter).sort('-createdAt').limit(200));
 }));
 

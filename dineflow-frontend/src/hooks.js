@@ -36,6 +36,10 @@ export function useOrders(socket, query = '') {
   useLive(socket, {
     'order:new': (o) => setData((cur) => (cur && !cur.some((x) => x._id === o._id) ? [o, ...cur] : cur)),
     'order:status': (p) => setData((cur) => cur && cur.map((x) => (x._id === p.orderId ? { ...x, status: p.status } : x))),
+    'payment:confirmed': (p) => {
+      const paidOrderIds = new Set((p.orderIds || []).map(String));
+      setData((cur) => cur && cur.filter((order) => !paidOrderIds.has(String(order._id))));
+    },
   });
   return state;
 }

@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react';
 import { ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '../lib/api';
+import { API_URL, api } from '../lib/api';
 import { Spinner } from './ui';
 
-/** Uploads to POST /api/uploads/:kind (Cloudinary) and returns the hosted URL. */
+/** Uploads to POST /api/uploads/:kind and returns the hosted URL. */
 export default function ImageUpload({ kind, value, onChange, label = 'Photo' }) {
   const ref = useRef(); const [busy, setBusy] = useState(false);
   const pick = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const fd = new FormData(); fd.append('file', file); setBusy(true);
-    try { const r = await api(`/api/uploads/${kind}`, { method: 'POST', form: fd }); onChange(r.url); }
+    try {
+      const r = await api(`/api/uploads/${kind}`, { method: 'POST', form: fd });
+      onChange(r.url.startsWith('/') ? new URL(r.url, API_URL).toString() : r.url);
+    }
     catch (x) { toast.error(x.message); } finally { setBusy(false); e.target.value = ''; }
   };
   return (
@@ -20,6 +23,7 @@ export default function ImageUpload({ kind, value, onChange, label = 'Photo' }) 
         {value ? <img src={value} alt="" className="h-full w-full object-cover" /> : <span className="flex flex-col items-center gap-1 text-sm text-warm-dim"><ImagePlus className="h-6 w-6" />Upload an image</span>}
         {busy && <span className="absolute inset-0 grid place-items-center bg-ink/70"><Spinner /></span>}
       </button>
+      <p className="mt-1 text-xs text-warm-faint">Save the form to keep this photo on the record.</p>
       <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={pick} />
     </div>
   );
