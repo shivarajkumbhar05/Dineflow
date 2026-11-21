@@ -35,5 +35,6 @@ export const pub = (slug) => ({
   order: (body) => api(`/api/public/${slug}/orders`, { method: 'POST', body, auth: false }),
   track: (code) => api(`/api/public/${slug}/orders/${code}`, { auth: false }),
   call: (body) => api(`/api/public/${slug}/waiter-call`, { method: 'POST', body, auth: false }),
+  bill: (body) => api(`/api/public/${slug}/bill/view`, { method: 'POST', body, auth: false }),
   pay: (body) => api(`/api/public/${slug}/bill/pay`, { method: 'POST', body, auth: false }),
 });

@@ -41,11 +41,13 @@ async function createTableBill({ restaurantId, table, discount }) {
     bill.tax = tax;
     bill.discount = appliedDiscount;
     bill.total = total;
+    if (!bill.currency) bill.currency = restaurant.currency;
     await bill.save();
   } else {
     bill = await Bill.create({
       restaurant: restaurantId, table: table._id, tableNumber: table.number, orders: orders.map((o) => o._id),
       items: [...merged.values()], subtotal, taxPercent: restaurant.taxPercent, tax, discount: appliedDiscount, total,
+      currency: restaurant.currency,
     });
   }
   if (unbilledOrders.length) {

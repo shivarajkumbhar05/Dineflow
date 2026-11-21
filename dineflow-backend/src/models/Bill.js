@@ -11,6 +11,7 @@ const schema = new mongoose.Schema(
     tax: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     total: { type: Number, required: true },
+    currency: { type: String },
     status: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' },
     paymentMethod: { type: String, enum: ['razorpay', 'cash', 'card', 'upi', null], default: null },
     razorpayOrderId: { type: String, index: true, sparse: true },

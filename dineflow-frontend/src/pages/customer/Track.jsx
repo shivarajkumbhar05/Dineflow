@@ -14,14 +14,16 @@ export default function Track() {
   const token = getTableToken(slug);
 
   useEffect(() => {
-    const load = () => pub(slug).track(code).then(setOrder).catch((e) => setError(e.message));
+    setOrder(null); setError('');
+    const load = () => pub(slug).track(code).then((nextOrder) => { setOrder(nextOrder); setError(''); }).catch((e) => setError(e.message));
     load();
     const s = connectSocket();
     const join = () => s.emit('track:order', { trackingCode: code });
+    const status = (p) => setOrder((o) => (o ? { ...o, status: p.status } : o));
     s.on('connect', join);
-    s.on('order:status', (p) => setOrder((o) => (o ? { ...o, status: p.status } : o)));
+    s.on('order:status', status);
     const poll = setInterval(load, 30000); // safety net if the socket drops
-    return () => { clearInterval(poll); s.off('connect', join); s.disconnect(); };
+    return () => { clearInterval(poll); s.off('connect', join); s.off('order:status', status); s.disconnect(); };
   }, [slug, code]);
 
   if (error) return <div className="grid min-h-dvh place-items-center p-6"><Empty icon={XCircle} title="Order not found">{error}</Empty></div>;
@@ -40,12 +42,12 @@ export default function Track() {
 
       <div className="ticket mt-8 shadow-lift" style={{ '--notch': '0px' }}>
         <ul className="space-y-1.5 p-5 text-sm">
-          {order.items.map((i, k) => <li key={k} className="flex justify-between gap-3"><span className="text-warm-dim"><span className="num">{i.qty}</span> × {i.name}</span><span className="num">{money(i.price * i.qty)}</span></li>)}
-          <li className="tear mt-3 flex justify-between pt-3 font-display text-lg font-extrabold"><span>Subtotal</span><span className="num text-saffron">{money(order.subtotal)}</span></li>
+          {order.items.map((i, k) => <li key={k} className="flex justify-between gap-3"><span className="text-warm-dim"><span className="num">{i.qty}</span> × {i.name}</span><span className="num">{money(i.price * i.qty, order.currency)}</span></li>)}
+          <li className="tear mt-3 flex justify-between pt-3 font-display text-lg font-extrabold"><span>Subtotal</span><span className="num text-saffron">{money(order.subtotal, order.currency)}</span></li>
         </ul>
       </div>
 
-      <div className="mt-6"><GuestActions slug={slug} token={token} restaurantName="DineFlow" /></div>
+      <div className="mt-6"><GuestActions slug={slug} token={token} restaurantName={order.restaurantName} /></div>
       <Link to={`/r/${slug}`} className="mt-3 block rounded-xl bg-saffron py-3.5 text-center font-bold text-ink">Order something else</Link>
     </div>
   );

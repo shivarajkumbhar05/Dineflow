@@ -3,6 +3,7 @@ const Razorpay = require('razorpay');
 const env = require('../config/env');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
+const { Restaurant } = require('../models');
 
 let client = null;
 function getClient() {
@@ -12,6 +13,11 @@ function getClient() {
 }
 
 async function createOrder(bill, restaurantId) {
+  const restaurant = await Restaurant.findById(restaurantId).select('currency');
+  if (!restaurant) throw new ApiError(404, 'Restaurant not found');
+  if ((bill.currency || restaurant.currency || 'INR').toUpperCase() !== 'INR') {
+    throw new ApiError(400, 'Online payments are only available for INR bills. Please pay at the counter.');
+  }
   try {
     return await getClient().orders.create({
       amount: Math.round(bill.total * 100),

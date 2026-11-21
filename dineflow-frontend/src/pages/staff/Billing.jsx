@@ -49,6 +49,7 @@ function printBill(bill, restaurantName, currency) {
 function BillTicket({ b, cur, onChange, restaurantName, role }) {
   const [busy, setBusy] = useState('');
   const paid = b.status === 'paid';
+  const onlineSupported = (cur || 'INR').toUpperCase() === 'INR';
   const offline = async (method) => {
     setBusy(method);
     try {
@@ -71,6 +72,7 @@ function BillTicket({ b, cur, onChange, restaurantName, role }) {
           onChange();
         },
         onDismiss: () => setBusy(''),
+        onError: (e) => { toast.error(`Payment verification failed: ${e.message}`); setBusy(''); },
       });
     } catch (e) { toast.error(e.message); setBusy(''); }
   };
@@ -104,9 +106,10 @@ function BillTicket({ b, cur, onChange, restaurantName, role }) {
           <Button variant="soft" size="sm" loading={busy === 'cash'} onClick={() => offline('cash')}><Banknote className="h-4 w-4" />Cash</Button>
           <Button variant="soft" size="sm" loading={busy === 'card'} onClick={() => offline('card')}><CreditCard className="h-4 w-4" />Card</Button>
           <Button variant="soft" size="sm" loading={busy === 'upi'} onClick={() => offline('upi')}><Smartphone className="h-4 w-4" />UPI at counter</Button>
-          <Button size="sm" loading={busy === 'razorpay'} onClick={online}><QrCode className="h-4 w-4" />Pay online</Button>
+          {onlineSupported && <Button size="sm" loading={busy === 'razorpay'} onClick={online}><QrCode className="h-4 w-4" />Pay online</Button>}
         </div>
       )}
+      {!paid && role !== 'cashier' && !onlineSupported && <p className="px-5 pb-5 text-xs text-warm-faint">Online payment is only available for INR bills. Please pay at the counter.</p>}
     </li>
   );
 }
@@ -129,7 +132,7 @@ export default function Billing() {
         {['unpaid', 'paid'].map((t) => <button key={t} onClick={() => setTab(t)} className={cx('rounded-full px-5 py-2 text-sm font-bold capitalize ring-1', tab === t ? 'bg-saffron text-ink ring-saffron' : 'bg-plum text-warm-dim ring-plum-line')}>{t}</button>)}
       </div>
       {list.length === 0 ? <Empty icon={Receipt} title={tab === 'unpaid' ? 'No open bills' : 'No paid bills yet'}>{tab === 'unpaid' ? 'Bills appear here automatically after guests place orders.' : 'Paid bills will be listed here.'}</Empty> : (
-        <ul className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">{list.map((b) => <BillTicket key={b._id} b={b} cur={restaurant?.currency} onChange={reload} restaurantName={restaurant?.name} role={user.role} />)}</ul>
+        <ul className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">{list.map((b) => <BillTicket key={b._id} b={b} cur={b.currency || restaurant?.currency} onChange={reload} restaurantName={restaurant?.name} role={user.role} />)}</ul>
       )}
     </div>
   );

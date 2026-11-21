@@ -6,11 +6,12 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const publicTenant = require('../middleware/publicTenant');
 const { publicOrderLimiter } = require('../middleware/rateLimit');
-const { MenuCategory, MenuItem, Table, Order, WaiterCall } = require('../models');
+const { MenuCategory, MenuItem, Table, Order, WaiterCall, Bill } = require('../models');
 const { emitToRestaurant } = require('../sockets');
 const { createOrder } = require('../services/razorpay');
 const { createTableBill } = require('../services/billing');
 const env = require('../config/env');
+const mongoose = require('mongoose');
 
 router.use('/:slug', publicTenant);
 
@@ -66,7 +67,7 @@ router.post('/:slug/orders', publicOrderLimiter, asyncHandler(async (req, res) =
 router.get('/:slug/orders/:trackingCode', asyncHandler(async (req, res) => {
   const order = await Order.findOne({ restaurant: req.tenantId, trackingCode: req.params.trackingCode }).select('status items subtotal tableNumber createdAt');
   if (!order) throw new ApiError(404, 'Order not found');
-  res.json(order);
+  res.json({ ...order.toObject(), currency: req.restaurant.currency, restaurantName: req.restaurant.name });
 }));
 
 router.post('/:slug/waiter-call', publicOrderLimiter, asyncHandler(async (req, res) => {
@@ -78,10 +79,44 @@ router.post('/:slug/waiter-call', publicOrderLimiter, asyncHandler(async (req, r
   res.status(201).json({ ok: true, callId: call._id });
 }));
 
+router.post('/:slug/bill/view', publicOrderLimiter, asyncHandler(async (req, res) => {
+  const table = await findTable(req, req.body.tableToken);
+  const [unpaidBill, unbilledOrder] = await Promise.all([
+    Bill.findOne({ restaurant: req.tenantId, table: table._id, status: 'unpaid' }).sort('createdAt'),
+    Order.exists({ restaurant: req.tenantId, table: table._id, billed: false, status: { $ne: 'cancelled' } }),
+  ]);
+  const bill = unpaidBill || unbilledOrder
+    ? await createTableBill({ restaurantId: req.tenantId, table })
+    : await Bill.findOne({ restaurant: req.tenantId, table: table._id, status: 'paid' }).sort('-paidAt');
+  if (!bill) throw new ApiError(404, 'No bill is available for this table');
+  res.json({
+    _id: String(bill._id),
+    tableNumber: bill.tableNumber,
+    items: bill.items,
+    subtotal: bill.subtotal,
+    discount: bill.discount,
+    taxPercent: bill.taxPercent,
+    tax: bill.tax,
+    total: bill.total,
+    status: bill.status,
+    createdAt: bill.createdAt,
+    currency: bill.currency || req.restaurant.currency,
+  });
+}));
+
 // Customer pays their table's open bill with Razorpay
 router.post('/:slug/bill/pay', publicOrderLimiter, asyncHandler(async (req, res) => {
   const table = await findTable(req, req.body.tableToken);
-  const bill = await createTableBill({ restaurantId: req.tenantId, table });
+  let bill;
+  if (req.body.billId) {
+    if (!mongoose.isValidObjectId(req.body.billId)) throw new ApiError(400, 'Invalid bill');
+    bill = await Bill.findOne({
+      _id: req.body.billId, restaurant: req.tenantId, table: table._id, status: 'unpaid',
+    });
+    if (!bill) throw new ApiError(404, 'Open bill not found for this table');
+  } else {
+    bill = await createTableBill({ restaurantId: req.tenantId, table });
+  }
   if (!bill.razorpayOrderId) {
     const rzp = await createOrder(bill, req.tenantId);
     bill.razorpayOrderId = rzp.id;
