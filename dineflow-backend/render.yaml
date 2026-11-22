@@ -3,7 +3,7 @@ services:
   - type: web
     name: dineflow-api
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install --omit=dev
     startCommand: npm start
     healthCheckPath: /health
@@ -21,6 +21,8 @@ services:
         value: https://dineflow-two-chi.vercel.app
       - key: FRONTEND_URL
         value: https://dineflow-two-chi.vercel.app
+      - key: CLOUDINARY_URL
+        sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET

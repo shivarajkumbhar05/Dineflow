@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, QrCode, Search, ShoppingBag, Soup, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { pub } from '../../lib/api';
-import { getTableToken, saveTableToken } from '../../lib/guest';
+import { getLastOrder, getTableToken, saveLastOrder, saveTableToken } from '../../lib/guest';
 import GuestActions from '../../components/GuestActions';
 import { Button, Empty, Input, Modal, PageLoader } from '../../components/ui';
 import { VegMark } from '../staff/MenuManager';
@@ -29,6 +29,7 @@ export default function Menu() {
   const urlToken = sp.get('t');
   useEffect(() => { if (urlToken) saveTableToken(slug, urlToken); }, [slug, urlToken]);
   const token = urlToken || getTableToken(slug);
+  const lastOrder = token ? getLastOrder(slug, token) : '';
   useEffect(() => {
     if (!token) return undefined;
     setWelcome(true);
@@ -63,6 +64,7 @@ export default function Menu() {
     setBusy(true);
     try {
       const r = await pub(slug).order({ tableToken: token, customerName: name, items: lines.map((l) => ({ menuItem: l.item._id, qty: l.qty, notes: l.notes })) });
+      saveLastOrder(slug, token, r.trackingCode);
       setCart({}); setOpen(false);
       nav(`/r/${slug}/track/${r.trackingCode}`);
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
@@ -93,6 +95,7 @@ export default function Menu() {
 
       <div className="space-y-3 px-5 pt-5">
         {!token ? <p className="rounded-2xl bg-saffron/15 px-4 py-3 text-sm font-semibold text-saffron ring-1 ring-saffron/30">You’re browsing the menu. Scan the QR code on your table to place an order.</p> : <GuestActions slug={slug} token={token} restaurantName={restaurant.name} />}
+        {lastOrder && <Link to={`/r/${slug}/track/${lastOrder}`} className="block rounded-xl bg-plum px-4 py-3 text-center text-sm font-bold text-saffron ring-1 ring-plum-line">View your last order</Link>}
       </div>
 
       <div className="sticky top-0 z-20 mt-4 space-y-3 bg-ink/90 px-5 py-3 backdrop-blur">

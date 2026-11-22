@@ -46,12 +46,12 @@ Generate a JWT secret:
 | MONGO_MAX_POOL_SIZE / MONGO_MIN_POOL_SIZE | no | connection pool, default 20 / 2 |
 | JWT_SECRET | yes | >= 32 chars in production (**secret**) |
 | JWT_EXPIRES_IN | no | default `7d` |
-| CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET | optional image storage | Cloudinary account credentials; keep the API secret private |
+| CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET | optional image storage | Cloudinary account credentials; keep the API secret private |
 | RAZORPAY_KEY_ID / KEY_SECRET | for payments | use `rzp_test_...` keys for sandbox |
 | RAZORPAY_WEBHOOK_SECRET | for webhook | set same value in Razorpay dashboard |
 
 Never put any of these in frontend code. Only `RAZORPAY_KEY_ID` (public key) is returned to the browser by the API.
-New image uploads use Cloudinary when configured and MongoDB GridFS otherwise; each image is limited to 5 MB. The upload response includes the hosted URL and Cloudinary optimization URLs when Cloudinary is enabled. Existing MongoDB GridFS image URLs remain available.
+New image uploads use Cloudinary when configured (with either `CLOUDINARY_URL` or the three separate credential variables) and MongoDB GridFS otherwise; each image is limited to 5 MB. The upload response includes the hosted URL and Cloudinary optimization URLs when Cloudinary is enabled. Existing MongoDB GridFS image URLs remain available.
 
 ## 4. API overview
 
@@ -93,7 +93,7 @@ Customers connect without a token and emit `track:order` with `{ trackingCode }`
 
 **Backend (Render example)**
 1. Push this folder to a GitHub repo.
-2. Render -> New -> Blueprint -> select repo (uses `render.yaml`), fill the secret env vars.
+2. Render -> New -> Blueprint -> select repo (uses `render.yaml`), fill the secret env vars. The free instance sleeps when idle, so the first request after inactivity may be slow.
 3. After first deploy, check `https://<your-api>/health` -> `{"status":"ok","db":"connected"}`.
 4. Custom domain: Render -> Settings -> Custom Domains -> add `api.yourdomain.com` and create the DNS CNAME. HTTPS certificates are issued automatically.
 5. CI/CD: in Render copy the **Deploy Hook URL**, add it to GitHub -> Settings -> Secrets as `RENDER_DEPLOY_HOOK_URL`. Pushes to `main` run `.github/workflows/ci.yml` and deploy only if validation passes.
