@@ -45,4 +45,4 @@ Staff only see the screens their role allows. Alerts (new order, ready to serve,
 
 - Prices are never sent from the client. The cart sends item ids and quantities; the backend prices the order.
 - Razorpay Checkout loads on demand. Payments are verified on the server before a bill is marked paid.
-- Image uploads need Cloudinary configured on the backend; otherwise the upload shows the server's "not configured" message.
+- New image uploads are stored in MongoDB GridFS by the backend; MongoDB must be connected and have enough storage space.
