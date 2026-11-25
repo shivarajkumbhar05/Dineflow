@@ -28,18 +28,34 @@ export const orderNumber = (id) => String(id || '').slice(-6).toUpperCase();
 export const ROLE_HOME = { owner: '/app', manager: '/app', kitchen: '/app/kitchen', waiter: '/app/floor', cashier: '/app/billing' };
 export const cx = (...a) => a.filter(Boolean).join(' ');
 
-// Short two-tone "ding" so staff notice new tickets without looking at the screen.
+// Clear multi-tone alert that is reusable and unlocked by an iPhone/iPad tap.
 let ctx;
+export async function unlockDing() {
+  try {
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') await ctx.resume();
+  } catch {
+    ctx = null;
+  }
+  return Boolean(ctx);
+}
+
 export function ding(freq = 880) {
   try {
     ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-    const tone = (f, delay, peak) => setTimeout(() => {
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f;
-      g.gain.setValueAtTime(peak, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.7);
-      o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.7);
-    }, delay);
-    tone(freq, 0, 0.36); tone(freq * 1.5, 180, 0.24);
-  } catch { /* audio is blocked until the first interaction */ }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const tones = [freq, freq * 1.25, freq * 1.5];
+    tones.forEach((f, index) => setTimeout(() => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, ctx.currentTime);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.42, ctx.currentTime + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.48);
+      o.connect(g).connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.5);
+    }, index * 150));
+  } catch { /* iOS requires unlockDing() after a tap */ }
 }

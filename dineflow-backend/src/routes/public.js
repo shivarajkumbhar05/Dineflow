@@ -8,10 +8,7 @@ const publicTenant = require('../middleware/publicTenant');
 const { publicOrderLimiter } = require('../middleware/rateLimit');
 const { MenuCategory, MenuItem, Table, Order, WaiterCall, Bill } = require('../models');
 const { emitToRestaurant } = require('../sockets');
-const { createOrder } = require('../services/razorpay');
 const { createTableBill } = require('../services/billing');
-const env = require('../config/env');
-const mongoose = require('mongoose');
 
 router.use('/:slug', publicTenant);
 
@@ -98,7 +95,6 @@ router.post('/:slug/bill/view', publicOrderLimiter, asyncHandler(async (req, res
     taxPercent: bill.taxPercent,
     tax: bill.tax,
     tip: bill.tip || 0,
-    paymentStarted: Boolean(bill.razorpayOrderId),
     total: bill.total,
     status: bill.status,
     createdAt: bill.createdAt,
@@ -106,40 +102,9 @@ router.post('/:slug/bill/view', publicOrderLimiter, asyncHandler(async (req, res
   });
 }));
 
-// Customer pays their table's open bill with Razorpay
+// Online customer checkout is disabled. Guests must pay at the counter.
 router.post('/:slug/bill/pay', publicOrderLimiter, asyncHandler(async (req, res) => {
-  const table = await findTable(req, req.body.tableToken);
-  let bill;
-  if (req.body.billId) {
-    if (!mongoose.isValidObjectId(req.body.billId)) throw new ApiError(400, 'Invalid bill');
-    bill = await Bill.findOne({
-      _id: req.body.billId, restaurant: req.tenantId, table: table._id, status: 'unpaid',
-    });
-    if (!bill) throw new ApiError(404, 'Open bill not found for this table');
-  } else {
-    bill = await createTableBill({ restaurantId: req.tenantId, table });
-  }
-  const tip = Math.round(Number(req.body.tip || 0) * 100) / 100;
-  if (!Number.isFinite(tip) || tip < 0 || tip > bill.total) {
-    throw new ApiError(400, 'Tip must be between 0 and the bill total');
-  }
-  if (bill.razorpayOrderId && Number(bill.tip || 0) !== tip) {
-    throw new ApiError(409, 'Payment has already started with a different tip');
-  }
-  if (!bill.razorpayOrderId) {
-    bill.tip = tip;
-    const rzp = await createOrder(bill, req.tenantId);
-    bill.razorpayOrderId = rzp.id;
-    await bill.save();
-  }
-  res.json({
-    keyId: env.razorpay.keyId,
-    razorpayOrderId: bill.razorpayOrderId,
-    amount: Math.round((bill.total + (bill.tip || 0)) * 100),
-    currency: 'INR',
-    billId: bill._id,
-    tip: bill.tip || 0,
-  });
+  throw new ApiError(410, 'Online payment is unavailable. Please pay at the counter.');
 }));
 
 module.exports = router;

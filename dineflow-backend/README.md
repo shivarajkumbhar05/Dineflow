@@ -69,7 +69,9 @@ New image uploads are stored in the MongoDB GridFS `uploads.files` and `uploads.
 - `GET /api/public/:slug/menu`
 - `POST /api/public/:slug/orders`  `{ tableToken, items:[{menuItem, qty, notes}], customerName }`
 - `GET /api/public/:slug/orders/:trackingCode`
-- `POST /api/public/:slug/waiter-call`, `POST /api/public/:slug/bill/pay`
+- `POST /api/public/:slug/waiter-call`, `POST /api/public/:slug/bill/view`
+
+Customer online checkout is disabled; guests view the bill and pay at the counter.
 
 **Health:** `GET /health`
 

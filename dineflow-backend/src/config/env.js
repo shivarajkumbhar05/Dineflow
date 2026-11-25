@@ -18,7 +18,7 @@ module.exports = {
   isProd: process.env.NODE_ENV === 'production',
   PORT: parseInt(process.env.PORT, 10) || 5000,
   corsOrigins: list(process.env.CORS_ORIGINS),
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+  FRONTEND_URL: (process.env.FRONTEND_URL || 'https://dineflow-two-chi.vercel.app').replace(/\/+$/, ''),
   MONGODB_URI: process.env.MONGODB_URI,
   MONGODB_DB_NAME: process.env.MONGODB_DB_NAME || 'dineflow',
   MONGO_MAX_POOL_SIZE: parseInt(process.env.MONGO_MAX_POOL_SIZE, 10) || 20,

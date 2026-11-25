@@ -1,12 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { BellRing, ChefHat, CreditCard, LayoutDashboard, LogOut, Moon, QrCode, Settings as Cog, Soup, Sun, Users, Wifi, WifiOff, ConciergeBell } from 'lucide-react';
+import { BellRing, ChefHat, CreditCard, LayoutDashboard, LogOut, Moon, QrCode, Settings as Cog, Soup, Sun, Users, Wifi, WifiOff, ConciergeBell, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks';
 import { api } from '../lib/api';
 import { Logo } from './ui';
-import { cx, ding } from '../lib/format';
+import { cx, ding, unlockDing } from '../lib/format';
 
 const NAV = [
   { to: '/app', end: true, label: 'Overview', icon: LayoutDashboard, roles: ['owner', 'manager'] },
@@ -23,6 +23,7 @@ export default function StaffLayout() {
   const { user, restaurant, socket, logout } = useAuth();
   const nav = useNavigate();
   const [online, setOnline] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('dineflow-sound-enabled') === 'true');
   const [theme, setTheme] = useState(() => localStorage.getItem('dineflow-theme') === 'light' ? 'light' : 'dark');
   const items = NAV.filter((n) => n.roles.includes(user.role));
   const toggleTheme = () => setTheme((current) => current === 'dark' ? 'light' : 'dark');
@@ -47,6 +48,18 @@ export default function StaffLayout() {
     return () => { socket.off('connect', up); socket.off('disconnect', down); };
   }, [socket]);
 
+  const enableSound = async () => {
+    const unlocked = await unlockDing();
+    if (unlocked) {
+      setSoundEnabled(true);
+      localStorage.setItem('dineflow-sound-enabled', 'true');
+      ding(880);
+      toast.success('Alert sound enabled');
+    } else {
+      toast.error('Your browser blocked sound. Use the button again to enable alerts.');
+    }
+  };
+
   // App-wide alerts: they fire on every page so nobody misses a ticket or a call.
   const kitchenSide = ['owner', 'manager', 'kitchen'].includes(user.role);
   const floorSide = ['owner', 'manager', 'waiter'].includes(user.role);
@@ -62,9 +75,12 @@ export default function StaffLayout() {
     'order:status': (p) => { if (user.role === 'waiter' && p.status === 'preparing') { ding(760); toast(`Table ${p.tableNumber}: order is cooking`); } },
     'kitchen:ready': (p) => { if (floorSide) { ding(660); toast.success(`Table ${p.tableNumber}: order is ready to serve`); } },
     'waiter:call': (c) => { if (floorSide) { ding(520); toast(`Table ${c.tableNumber} needs ${c.reason === 'bill' ? 'the bill' : c.reason === 'water' ? 'water' : 'a waiter'}`, { icon: '🔔' }); } },
-    'payment:confirmed': (p) => toast.success(p.tableStatus === 'available'
-      ? `Payment received for table ${p.tableNumber}. Table is now free.`
-      : `Payment received for table ${p.tableNumber}.`),
+    'payment:confirmed': (p) => {
+      if (soundEnabled) ding(720);
+      toast.success(p.tableStatus === 'available'
+        ? `Payment received for table ${p.tableNumber}. Table is now free.`
+        : `Payment received for table ${p.tableNumber}.`);
+    },
   });
 
   return (
@@ -82,6 +98,10 @@ export default function StaffLayout() {
         <div className="rounded-2xl bg-plum p-3 ring-1 ring-plum-line">
           <p className="truncate text-sm font-bold">{user.name}</p>
           <p className="text-xs capitalize text-warm-dim">{user.role}</p>
+          <button type="button" onClick={enableSound} className={cx('mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ring-1', soundEnabled ? 'bg-pista/15 text-pista ring-pista/30' : 'bg-saffron/15 text-saffron ring-saffron/30')}>
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {soundEnabled ? 'Sound enabled' : 'Enable alert sound'}
+          </button>
           <div className="mt-3 flex items-center justify-between">
             <span className={cx('inline-flex items-center gap-1.5 text-xs font-semibold', online ? 'text-pista' : 'text-chili')}>
               {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}{online ? 'Live' : 'Reconnecting'}
@@ -96,6 +116,9 @@ export default function StaffLayout() {
           <Logo className="text-lg" />
           <div className="flex items-center gap-3">
             <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className="rounded-lg p-1.5 text-warm-dim"><Sun className={cx('h-4 w-4', theme === 'light' && 'hidden')} /><Moon className={cx('h-4 w-4', theme === 'dark' && 'hidden')} /></button>
+            <button type="button" onClick={enableSound} aria-label={soundEnabled ? 'Test alert sound' : 'Enable alert sound'} className={cx('rounded-lg p-1.5', soundEnabled ? 'text-pista' : 'text-saffron')}>
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
             <span className={cx('inline-flex items-center gap-1 text-xs font-semibold', online ? 'text-pista' : 'text-chili')}><BellRing className="h-3.5 w-3.5" />{online ? 'Live' : 'Offline'}</span>
             <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-1.5 text-warm-dim"><LogOut className="h-5 w-5" /></button>
           </div>

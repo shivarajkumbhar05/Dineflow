@@ -20,7 +20,7 @@ function printQr(t, restaurantName) {
   const svg = document.getElementById(`qr-${t._id}`)?.outerHTML || '';
   const w = window.open('', '_blank', 'width=520,height=700');
   if (!w) return toast.error('Allow pop-ups to print the QR code.');
-  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan with your Android or iPhone camera to order</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2></body>`);
+  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan with your Android or iPhone camera to order</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2><p style="font-size:12px;word-break:break-all">${t.qrUrl}</p></body>`);
   w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
 }
 

@@ -8,7 +8,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { emitToRestaurant } = require('../sockets');
 
 router.use(authenticate);
-const qrLink = (slug, token) => `${env.FRONTEND_URL}/r/${slug}?t=${token}`;
+const qrLink = (slug, token) => `${env.FRONTEND_URL.replace(/\/+$/, '')}/r/${encodeURIComponent(slug)}?t=${encodeURIComponent(token)}`;
 
 router.get('/', authorize('owner', 'manager', 'cashier'), asyncHandler(async (req, res) => {
   const [tables, restaurant] = await Promise.all([Table.find({ restaurant: req.tenantId }).sort('number'), Restaurant.findById(req.tenantId).select('slug')]);
