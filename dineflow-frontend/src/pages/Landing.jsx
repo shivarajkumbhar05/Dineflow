@@ -119,7 +119,7 @@ export default function Landing() {
         <p className="mx-auto mt-4 max-w-lg text-warm-dim">Add your menu, create your tables, and every table gets its own printable code in minutes.</p>
         <Link to="/register" className="mt-8 inline-block"><Button size="lg">Create your account</Button></Link>
       </section>
-      <footer className="border-t border-plum-line/70 px-5 py-8 text-center text-sm text-warm-faint">© {new Date().getFullYear()} DineFlow</footer>
+      <footer className="border-t border-plum-line/70 px-5 py-8 text-center text-sm text-warm-faint">© {new Date().getFullYear()} Shivaraj Kumbhar. All rights reserved.</footer>
     </div>
   );
 }
