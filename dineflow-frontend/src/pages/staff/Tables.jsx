@@ -16,11 +16,20 @@ const STATUS = {
   billing: { label: 'Billing', ring: 'ring-chili/60', dot: 'bg-chili' },
 };
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
 function printQr(t, restaurantName) {
-  const svg = document.getElementById(`qr-${t._id}`)?.outerHTML || '';
+  const source = document.getElementById(`qr-${t._id}`);
+  if (!source) return toast.error('The QR code is not ready to print. Please try again.');
+  const qr = source.cloneNode(true);
+  qr.setAttribute('width', '320');
+  qr.setAttribute('height', '320');
+  qr.setAttribute('style', 'display:block;width:320px;height:320px;max-width:100%;margin:0 auto');
   const w = window.open('', '_blank', 'width=520,height=700');
   if (!w) return toast.error('Allow pop-ups to print the QR code.');
-  w.document.write(`<title>Table ${t.number}</title><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${restaurantName}</h1><p style="font-size:18px;color:#555">Scan with your Android or iPhone camera to order</p><div style="width:320px;margin:24px auto">${svg.replace('<svg', '<svg width="320" height="320"')}</div><h2 style="font-size:64px;margin:0">Table ${t.number}</h2><p style="font-size:12px;word-break:break-all">${t.qrUrl}</p></body>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Table ${escapeHtml(t.number)}</title></head><body style="font-family:system-ui;text-align:center;padding:40px"><h1 style="font-size:28px;margin:0">${escapeHtml(restaurantName)}</h1><p style="font-size:18px;color:#555">Scan with your Android or iPhone camera to order</p><div style="width:100%;margin:24px auto">${qr.outerHTML}</div><h2 style="font-size:64px;margin:0">Table ${escapeHtml(t.number)}</h2><p style="font-size:12px;word-break:break-all">${escapeHtml(t.qrUrl)}</p></body></html>`);
   w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
 }
 
@@ -117,7 +126,13 @@ export default function Tables() {
             <p className="mt-3 text-sm text-warm-dim">Scan with your Android or iPhone camera. No app is needed.</p>
             <p className="mt-4 break-all rounded-lg bg-ink/70 px-3 py-2 text-xs text-warm-dim">{qr.qrUrl}</p>
             <div className="mt-4 flex gap-2">
-              <Button variant="soft" className="flex-1" onClick={() => { navigator.clipboard?.writeText(qr.qrUrl); toast.success('Link copied'); }}><Copy className="h-4 w-4" />Copy link</Button>
+              <Button variant="soft" className="flex-1" onClick={async () => {
+                try {
+                  if (!navigator.clipboard) throw new Error('Clipboard access is unavailable in this browser.');
+                  await navigator.clipboard.writeText(qr.qrUrl);
+                  toast.success('Link copied');
+                } catch (e) { toast.error(e.message || 'Could not copy the link.'); }
+              }}><Copy className="h-4 w-4" />Copy link</Button>
               <Button className="flex-1" onClick={() => printQr(qr, restaurant?.name)}><Printer className="h-4 w-4" />Print</Button>
             </div>
           </div>

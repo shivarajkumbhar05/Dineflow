@@ -115,11 +115,21 @@ async function markBillPaid(bill, { method, paymentId }) {
     const table = await Table.findOne({ _id: bill.table, restaurant: bill.restaurant }).select('status');
     return { bill, tableStatus: table?.status || 'available' };
   }
-  bill.status = 'paid';
-  bill.paymentMethod = method;
-  if (paymentId) bill.razorpayPaymentId = paymentId;
-  bill.paidAt = new Date();
-  await bill.save();
+  const payment = { status: 'paid', paymentMethod: method, paidAt: new Date() };
+  if (paymentId) payment.razorpayPaymentId = paymentId;
+  const paidBill = await Bill.findOneAndUpdate(
+    { _id: bill._id, restaurant: bill.restaurant, status: 'unpaid' },
+    { $set: payment },
+    { new: true, runValidators: true }
+  );
+  if (!paidBill) {
+    const currentBill = await Bill.findOne({ _id: bill._id, restaurant: bill.restaurant });
+    if (!currentBill) throw new ApiError(404, 'Bill not found');
+    if (currentBill.status !== 'paid') throw new ApiError(409, 'Bill payment could not be confirmed');
+    const table = await Table.findOne({ _id: currentBill.table, restaurant: currentBill.restaurant }).select('status');
+    return { bill: currentBill, tableStatus: table?.status || 'available' };
+  }
+  bill = paidBill;
   const [otherUnpaidBill, unbilledOrder] = await Promise.all([
     Bill.exists({ _id: { $ne: bill._id }, restaurant: bill.restaurant, table: bill.table, status: 'unpaid' }),
     Order.exists({ restaurant: bill.restaurant, table: bill.table, billed: false, status: { $ne: 'cancelled' } }),

@@ -95,7 +95,8 @@ function BillTicket({ b, cur, onChange, restaurantName, role }) {
         name: restaurantName,
         description: `Table ${b.tableNumber}`,
         onPaid: (result) => {
-          toast.success(result.tableStatus === 'available' ? `Table ${b.tableNumber} is now free.` : 'Payment verified.');
+          toast.success(`Online payment successfully received for table ${b.tableNumber}.${result.tableStatus === 'available' ? ' The table is now free.' : ''}`);
+          setBusy('');
           onChange();
         },
         onDismiss: () => setBusy(''),

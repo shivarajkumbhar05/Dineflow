@@ -22,4 +22,5 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 schema.index({ restaurant: 1, status: 1, createdAt: -1 });
+schema.index({ restaurant: 1, table: 1, status: 1, createdAt: 1 });
 module.exports = mongoose.model('Bill', schema);
